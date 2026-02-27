@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+  <!-- Floating Time Saved -->
+  <div class="time-saved-float" id="time-saved-float" style="display: none;">
+    <div class="ts-label">Human Time Saved</div>
+    <div class="ts-value"><span id="time-saved-value">0.0</span> hrs</div>
+    <div class="ts-sub"><span id="time-saved-tests">0</span> tests in <span id="time-saved-seconds">0</span>s</div>
+  </div>
+
+  <section class="container-fluid px-4">
+
+    <!-- Hero -->
+    <div class="text-center py-4">
+      <h1 class="hero-title mb-2">Data Pipe X-Ray</h1>
+      <p class="hero-sub mb-4">
+        Feed it a messy API spec. Watch the AI scan, reason, and generate expert-grade tests.
+        Then light up your entire data pipeline like an X-Ray.
+      </p>
+
+      <div class="d-flex flex-wrap gap-2 justify-content-center mb-3">
+        <button type="button" class="btn scenario-btn" data-scenario="payments">
+          <i class="bi bi-credit-card me-1"></i> Payments Pipeline
+        </button>
+        <button type="button" class="btn scenario-btn" data-scenario="ledger">
+          <i class="bi bi-journal-check me-1"></i> Ledger &amp; Settlements
+        </button>
+        <button type="button" class="btn scenario-btn" data-scenario="legacy-outage">
+          <i class="bi bi-cpu me-1"></i> Legacy Emulator Outage
+        </button>
+      </div>
+
+      <button type="button" class="btn btn-launch" id="launch-btn">
+        <i class="bi bi-lightning-charge-fill me-2"></i>Launch X-Ray
+      </button>
+      <div class="mt-2 small text-secondary" id="launch-status"></div>
+    </div>
+
+    <!-- Agent Console -->
+    <div class="row mb-4">
+      <div class="col-12">
+        <div class="agent-console-card">
+          <div class="card-header border-0 d-flex justify-content-between align-items-center px-3 pt-3 pb-0">
+            <div class="d-flex align-items-center gap-2">
+              <span class="badge badge-glow-blue">
+                <i class="bi bi-cpu me-1"></i>Agent Console
+              </span>
+              <span class="small text-secondary d-none d-md-inline">
+                Live reasoning from the AI as it scans your spec and builds tests.
+              </span>
+            </div>
+            <span id="agent-phase-pill" class="agent-phase-pill idle text-uppercase">Idle</span>
+          </div>
+          <div class="card-body pt-2 pb-3 px-3">
+            <pre class="agent-console-log mb-0 p-2 rounded" id="agent-console-log"><span class="text-secondary">// Waiting for launch. Choose a scenario above and hit "Launch X-Ray".</span></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Split: Spec + Generated Tests -->
+    <div class="row g-3 mb-4">
+
+      <!-- Left: Messy Spec -->
+      <div class="col-12 col-xl-5">
+        <div class="xray-card h-100">
+          <div class="card-header border-0 d-flex align-items-center justify-content-between px-3 pt-3 pb-0">
+            <div class="d-flex align-items-center gap-2">
+              <span class="badge badge-glow-blue"><i class="bi bi-file-earmark-code me-1"></i>Input Spec</span>
+              <span class="badge text-bg-secondary" id="spec-kind-badge" style="font-size:0.65rem">OpenAPI</span>
+            </div>
+          </div>
+          <div class="card-body px-3 pb-3 d-flex flex-column">
+            <textarea
+              id="spec-text"
+              class="form-control font-monospace spec-textarea mb-2"
+              rows="12"
+              spellcheck="false"
+            ></textarea>
+            <div class="position-relative flex-fill overflow-auto rounded" id="spec-preview-shell" style="display:none;">
+              <pre class="m-0 p-3 font-monospace small" id="spec-preview"><code></code></pre>
+              <div class="spec-scan-overlay d-none" id="spec-scan-overlay"></div>
+            </div>
+            <div class="mt-2 small" id="spec-summary"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: AI-Generated Tests -->
+      <div class="col-12 col-xl-7">
+        <div class="xray-card h-100">
+          <div class="card-header border-0 d-flex align-items-center justify-content-between px-3 pt-3 pb-0">
+            <span class="badge badge-glow-blue"><i class="bi bi-code-square me-1"></i>AI-Generated Tests</span>
+          </div>
+          <div class="card-body px-3 pb-3 d-flex flex-column">
+            <ul class="nav nav-pills mb-2" id="test-category-tabs" role="tablist">
+              <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="tab-happy" data-bs-toggle="tab" data-bs-target="#pane-happy" type="button" role="tab">
+                  Happy Path <span class="badge text-bg-secondary ms-1" id="count-happy">0</span>
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tab-edge" data-bs-toggle="tab" data-bs-target="#pane-edge" type="button" role="tab">
+                  Edge Cases <span class="badge text-bg-secondary ms-1" id="count-edge">0</span>
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tab-malicious" data-bs-toggle="tab" data-bs-target="#pane-malicious" type="button" role="tab">
+                  Malicious <span class="badge text-bg-secondary ms-1" id="count-malicious">0</span>
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tab-property" data-bs-toggle="tab" data-bs-target="#pane-property" type="button" role="tab">
+                  Property-Based <span class="badge text-bg-secondary ms-1" id="count-property">0</span>
+                </button>
+              </li>
+            </ul>
+            <div class="tab-content flex-fill border rounded overflow-auto" id="test-panes" style="border-color: rgba(148,163,184,0.1) !important;">
+              {% for key in ["happy", "edge", "malicious", "property"] %}
+              <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="pane-{{ key }}" role="tabpanel">
+                <pre class="m-0 p-3 font-monospace small code-pane" data-category="{{ key }}"><code id="code-{{ key }}" class="language-python"># {{ key|capitalize }} tests will stream here...</code></pre>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- X-Ray Pipeline Graph -->
+    <div class="row mb-4">
+      <div class="col-12">
+        <div class="xray-card">
+          <div class="card-header border-0 d-flex justify-content-between align-items-center px-3 pt-3 pb-0">
+            <span class="badge badge-glow-green"><i class="bi bi-activity me-1"></i>Pipeline X-Ray</span>
+            <div class="d-flex align-items-center gap-2 small">
+              <span class="text-secondary" id="xray-pass-count">0 passed</span>
+              <span class="text-secondary">|</span>
+              <span class="text-secondary" id="xray-fail-count">0 failed</span>
+            </div>
+          </div>
+          <div class="card-body px-3 pb-3">
+            <div id="xray-graph" class="xray-graph-shell mb-2"></div>
+            <div class="d-flex align-items-center gap-3">
+              <input type="range" class="form-range flex-fill" id="xray-timeline" min="0" max="0" value="0" style="max-width: 400px;" />
+              <span class="small text-secondary" id="xray-status">Waiting for X-Ray...</span>
+            </div>
+            <div id="xray-detail" class="mt-2"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CI/CD + Mocks -->
+    <div class="row mb-5">
+      <div class="col-12">
+        <div class="xray-card">
+          <div class="card-header border-0 px-3 pt-3 pb-0">
+            <ul class="nav nav-tabs" id="bottom-tabs" role="tablist">
+              <li class="nav-item" role="presentation">
+                <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#pane-ci" type="button" role="tab">CI/CD Pipeline</button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#pane-mocks" type="button" role="tab">Mock Services</button>
+              </li>
+            </ul>
+          </div>
+          <div class="card-body px-3 pb-3">
+            <div class="tab-content">
+              <div class="tab-pane fade show active" id="pane-ci" role="tabpanel">
+                <div id="ci-view" class="row g-3"></div>
+              </div>
+              <div class="tab-pane fade" id="pane-mocks" role="tabpanel">
+                <div id="mocks-view" class="row g-3"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </section>
+{% endblock %}
