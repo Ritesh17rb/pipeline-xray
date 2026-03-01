@@ -67,6 +67,18 @@ def _failure_mapping() -> Dict[str, Tuple[str, str]]:
             "field caused a strict-mode JSON schema validation error at the API "
             "Gateway. The pipe rejected data that production systems already send.",
         ),
+        "test_redos_polynomial_regex_attack": (
+            "Validator",
+            "ReDoS attack: the Validator's event_type regex took >5 seconds on the "
+            "crafted input 'aaaaaa...!' — polynomial backtracking. An attacker could "
+            "tie up all worker threads with a single request.",
+        ),
+        "test_cross_pipe_reconciliation_shares": (
+            "DB",
+            "Reconciliation FAILURE: Trade pipe recorded 100 shares of PG, but the "
+            "ledger balance query returned 90. Silent data loss of 10 shares "
+            "between the event ingestion and ledger posting. $16,500 discrepancy.",
+        ),
     }
 
 

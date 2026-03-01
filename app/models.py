@@ -107,6 +107,14 @@ class TestGenerationRequest(BaseModel):
         default=None,
         description="Model name for the (mocked) LLM.",
     )
+    chaos_level: int = Field(
+        default=0,
+        description="0=low, 1=medium, 2=high chaos/malice level.",
+    )
+    compliance_tags: List[str] = Field(
+        default_factory=list,
+        description="Active regulatory compliance overlays.",
+    )
 
 
 class TestGenerationResponse(BaseModel):
@@ -114,6 +122,10 @@ class TestGenerationResponse(BaseModel):
     categories: Dict[str, int]
     total_tests: int
     estimated_minutes_saved: float
+    risk_mitigated_usd: float = 0.0
+    pii_findings: List[Dict[str, str]] = Field(default_factory=list)
+    flakiness_map: Dict[str, float] = Field(default_factory=dict)
+    compliance_tags: List[str] = Field(default_factory=list)
 
 
 class MockServiceState(BaseModel):

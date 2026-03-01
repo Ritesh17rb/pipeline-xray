@@ -84,6 +84,8 @@ async def generate_tests(payload: models.TestGenerationRequest) -> models.TestGe
     test_plan = llm_mock.generate_tests_from_spec(
         spec=session.parsed_schema,
         model_name=payload.model or "gpt-5-nano",
+        chaos_level=payload.chaos_level,
+        compliance_tags=payload.compliance_tags,
     )
     suite = test_generator.build_test_suite(test_plan)
     session.test_suite = suite
@@ -96,11 +98,38 @@ async def generate_tests(payload: models.TestGenerationRequest) -> models.TestGe
 
     SESSIONS[payload.session_id] = session
 
+    risk_per_test = 12_000
+    risk_total = suite.total_tests * risk_per_test
+
+    pii_findings = [
+        {"field": "customer_name", "type": "Name", "risk": "medium",
+         "detail": "Customer name passed through to analytics feed unmasked."},
+        {"field": "ssn", "type": "SSN", "risk": "critical",
+         "detail": "Social Security Number detected in payload. Must be masked before logging."},
+        {"field": "card", "type": "Credit Card", "risk": "critical",
+         "detail": "Card number (Visa) in payload. PCI-DSS requires tokenization."},
+        {"field": "email", "type": "Email", "risk": "high",
+         "detail": "Email address leaking to non-prod downstream. GDPR violation risk."},
+    ]
+
+    flakiness_map = {
+        "API Gateway": 0.02,
+        "Validator": 0.05,
+        "Transformer": 0.28,
+        "Database": 0.03,
+        "Legacy Emulator": 0.35,
+        "Risk Score API": 0.12,
+    }
+
     return models.TestGenerationResponse(
         session_id=payload.session_id,
         categories=suite.category_counts,
         total_tests=suite.total_tests,
         estimated_minutes_saved=suite.estimated_minutes_saved,
+        risk_mitigated_usd=risk_total,
+        pii_findings=pii_findings,
+        flakiness_map=flakiness_map,
+        compliance_tags=payload.compliance_tags,
     )
 
 
