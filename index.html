@@ -100,6 +100,7 @@
     <a href="#spec-code-section" class="section-nav-dot" data-label="Spec & Code" title="Spec & Code"><i class="bi bi-code-slash"></i></a>
     <a href="#xray-section" class="section-nav-dot" data-label="X-Ray" title="X-Ray"><i class="bi bi-activity"></i></a>
     <a href="#insights-section" class="section-nav-dot" data-label="Features" title="Features"><i class="bi bi-stars"></i></a>
+    <a href="#advanced-section" class="section-nav-dot" data-label="Advanced" title="Advanced"><i class="bi bi-graph-up-arrow"></i></a>
   </nav>
 
   <section class="container-fluid px-4">
@@ -270,6 +271,39 @@
       </div>
     </div>
 
+    <!-- Beginner vs Expert comparison (hidden until test generation completes) -->
+    <div class="row mb-3 d-none" id="expert-comparison">
+      <div class="col-12">
+        <div class="xray-card">
+          <div class="card-header border-0 px-3 pt-3 pb-0">
+            <span class="badge badge-glow-green"><i class="bi bi-mortarboard-fill me-1"></i>Beginner vs Expert</span>
+          </div>
+          <div class="card-body px-3 pb-3">
+            <div class="row g-3">
+              <div class="col-12 col-md-6">
+                <div class="expert-comparison-column expert-comparison-beginner rounded p-3 h-100">
+                  <div class="small fw-semibold text-secondary mb-2">Typical Test Suite</div>
+                  <ul class="small text-secondary mb-0 ps-3" id="expert-comparison-beginner-list">
+                    <li>test_create_payment_valid</li>
+                    <li>test_get_payment_by_id</li>
+                    <li>test_events_post_ok</li>
+                    <li>test_amount_validation</li>
+                    <li>test_currency_required</li>
+                  </ul>
+                </div>
+              </div>
+              <div class="col-12 col-md-6">
+                <div class="expert-comparison-column expert-comparison-ai rounded p-3 h-100">
+                  <div class="small fw-semibold mb-2" style="color:var(--neon-green)">AI-Generated Suite</div>
+                  <div id="expert-comparison-ai-list" class="d-flex flex-wrap gap-1 small"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Legacy Archaeology Transpilation -->
     <div class="row mb-3 d-none" id="archaeology-section">
       <div class="col-12">
@@ -366,6 +400,80 @@
         <div class="xray-card h-100">
           <div class="card-header border-0 d-flex justify-content-between align-items-center px-3 pt-3 pb-0"><span class="badge" style="background:rgba(245,158,11,0.15);color:var(--neon-amber);border:1px solid rgba(245,158,11,0.3)"><i class="bi bi-wrench me-1"></i>Self-Healing Engine</span><span class="small text-secondary">Ghost in the Machine</span></div>
           <div class="card-body px-3 pb-3"><div id="self-healing-view"><div class="text-center py-3"><i class="bi bi-gear-wide-connected" style="font-size:1.5rem;color:var(--neon-amber);opacity:0.4"></i><div class="small text-secondary mt-1">Launch X-Ray to see auto-repair suggestions</div></div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Advanced Analytics -->
+    <div class="row g-3 mb-3" id="advanced-section">
+      <!-- Mutation Score Analysis -->
+      <div class="col-12 col-lg-6">
+        <div class="xray-card h-100">
+          <div class="card-header border-0 d-flex justify-content-between align-items-center px-3 pt-3 pb-0">
+            <span class="badge badge-glow-purple"><i class="bi bi-bug me-1"></i>Mutation Score</span>
+            <span class="small text-secondary">How strong are these tests?</span>
+          </div>
+          <div class="card-body px-3 pb-3"><div id="mutation-score-view"><div class="text-center py-3"><i class="bi bi-bug" style="font-size:1.5rem;color:var(--neon-purple);opacity:0.4"></i><div class="small text-secondary mt-1">Launch X-Ray to analyze test strength</div></div></div></div>
+        </div>
+      </div>
+      <!-- Blast Radius Map -->
+      <div class="col-12 col-lg-6">
+        <div class="xray-card h-100">
+          <div class="card-header border-0 d-flex justify-content-between align-items-center px-3 pt-3 pb-0">
+            <span class="badge badge-glow-red"><i class="bi bi-bullseye me-1"></i>Blast Radius</span>
+            <span class="small text-secondary">Downstream failure impact</span>
+          </div>
+          <div class="card-body px-3 pb-3"><div id="blast-radius-view"><div class="text-center py-3"><i class="bi bi-bullseye" style="font-size:1.5rem;color:var(--neon-red);opacity:0.4"></i><div class="small text-secondary mt-1">Launch X-Ray to map failure blast radius</div></div></div></div>
+        </div>
+      </div>
+      <!-- Data Lineage Trace -->
+      <div class="col-12">
+        <div class="xray-card">
+          <div class="card-header border-0 d-flex justify-content-between align-items-center px-3 pt-3 pb-0">
+            <span class="badge badge-glow-blue"><i class="bi bi-signpost-split me-1"></i>Data Lineage Trace</span>
+            <span class="small text-secondary">Field-level origin, transformation, and destination</span>
+          </div>
+          <div class="card-body px-3 pb-3"><div id="lineage-view"><div class="text-center py-3"><i class="bi bi-signpost-split" style="font-size:1.5rem;color:var(--neon-blue);opacity:0.4"></i><div class="small text-secondary mt-1">Launch X-Ray to trace data lineage</div></div></div></div>
+        </div>
+      </div>
+      <!-- Test Impact Ranking -->
+      <div class="col-12 col-lg-6">
+        <div class="xray-card h-100">
+          <div class="card-header border-0 d-flex justify-content-between align-items-center px-3 pt-3 pb-0">
+            <span class="badge badge-glow-green"><i class="bi bi-sort-down me-1"></i>Test Impact Ranking</span>
+            <span class="small text-secondary">Prioritized by business risk</span>
+          </div>
+          <div class="card-body px-3 pb-3"><div id="impact-ranking-view"><div class="text-center py-3"><i class="bi bi-sort-down" style="font-size:1.5rem;color:var(--neon-green);opacity:0.4"></i><div class="small text-secondary mt-1">Launch X-Ray to rank tests by business impact</div></div></div></div>
+        </div>
+      </div>
+      <!-- Schema Version Diff -->
+      <div class="col-12 col-lg-6">
+        <div class="xray-card h-100">
+          <div class="card-header border-0 d-flex justify-content-between align-items-center px-3 pt-3 pb-0">
+            <span class="badge" style="background:rgba(167,139,250,0.15);color:var(--neon-purple);border:1px solid rgba(167,139,250,0.3)"><i class="bi bi-file-diff me-1"></i>Schema Version Diff</span>
+            <span class="small text-secondary">v2.4 → v2.5</span>
+          </div>
+          <div class="card-body px-3 pb-3"><div id="schema-diff-view"><div class="text-center py-3"><i class="bi bi-file-diff" style="font-size:1.5rem;color:var(--neon-purple);opacity:0.4"></i><div class="small text-secondary mt-1">Launch X-Ray to compare schema versions</div></div></div></div>
+        </div>
+      </div>
+      <!-- Latency & Throughput Simulation -->
+      <div class="col-12 col-lg-6">
+        <div class="xray-card h-100">
+          <div class="card-header border-0 d-flex justify-content-between align-items-center px-3 pt-3 pb-0">
+            <span class="badge badge-glow-green"><i class="bi bi-speedometer2 me-1"></i>Latency & Throughput</span>
+            <span class="small text-secondary">Performance simulation</span>
+          </div>
+          <div class="card-body px-3 pb-3"><div id="latency-sim-view"><div class="text-center py-3"><i class="bi bi-speedometer2" style="font-size:1.5rem;color:var(--neon-green);opacity:0.4"></i><div class="small text-secondary mt-1">Launch X-Ray to simulate load</div></div></div></div>
+        </div>
+      </div>
+      <!-- Dead Letter Queue -->
+      <div class="col-12 col-lg-6">
+        <div class="xray-card h-100">
+          <div class="card-header border-0 d-flex justify-content-between align-items-center px-3 pt-3 pb-0">
+            <span class="badge badge-glow-red"><i class="bi bi-mailbox2 me-1"></i>Dead Letter Queue</span>
+            <span class="small text-secondary">Failed messages & poison pills</span>
+          </div>
+          <div class="card-body px-3 pb-3"><div id="dlq-view"><div class="text-center py-3"><i class="bi bi-mailbox2" style="font-size:1.5rem;color:var(--neon-red);opacity:0.4"></i><div class="small text-secondary mt-1">Launch X-Ray to inspect dead letters</div></div></div></div>
         </div>
       </div>
     </div>

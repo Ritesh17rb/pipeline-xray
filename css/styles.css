@@ -1216,3 +1216,212 @@ body::after {
   border-color: var(--neon-amber) !important;
   box-shadow: 0 0 16px rgba(245, 158, 11, 0.2) !important;
 }
+
+/* ── Expert Insight cards (below code panes) ── */
+.expert-insight-card {
+  border-left: 3px solid var(--neon-amber);
+  background: var(--code-bg);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+}
+.expert-insight-icon {
+  color: var(--neon-amber);
+  font-size: 0.9rem;
+}
+.expert-tag-badge {
+  background: rgba(245, 158, 11, 0.2);
+  color: var(--neon-amber);
+  font-size: 0.65rem;
+  font-weight: 600;
+}
+.expert-insight-text {
+  color: var(--text-primary);
+  font-size: 0.75rem;
+}
+.confidence-badge {
+  font-size: 0.65rem;
+  font-weight: 600;
+}
+.confidence-high { background: rgba(0, 255, 153, 0.2); color: var(--neon-green); }
+.confidence-medium { background: rgba(245, 158, 11, 0.2); color: var(--neon-amber); }
+.confidence-low { background: rgba(255, 76, 76, 0.2); color: var(--neon-red); }
+
+/* ── CI animated steps ── */
+.ci-step-row {
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+.ci-step-row:hover {
+  background: rgba(148, 163, 184, 0.08);
+}
+.ci-step-queued { color: var(--text-secondary); }
+.ci-step-running {
+  color: var(--neon-amber);
+  animation: ciSpin 0.8s linear infinite;
+}
+.ci-step-success-row { background: rgba(0, 255, 153, 0.04); }
+@keyframes ciSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.ci-step-log {
+  font-size: 0.7rem;
+  max-height: 180px;
+  overflow: auto;
+}
+
+/* ── PR status check mock ── */
+.ci-pr-mock {
+  background: var(--bg-card);
+  border-color: rgba(148, 163, 184, 0.2);
+}
+.ci-pr-check {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+.ci-pr-pending {
+  color: var(--neon-amber);
+}
+
+/* ── Beginner vs Expert comparison ── */
+.expert-comparison-column {
+  background: var(--bg-card);
+  border: 1px solid rgba(148, 163, 184, 0.15);
+}
+.expert-comparison-beginner {
+  opacity: 0.85;
+}
+.expert-comparison-ai {
+  border-color: rgba(0, 255, 153, 0.2);
+  box-shadow: 0 0 12px rgba(0, 255, 153, 0.06);
+}
+
+/* ── Badge glow purple ── */
+.badge-glow-purple {
+  background: rgba(167, 139, 250, 0.15);
+  color: var(--neon-purple);
+  border: 1px solid rgba(167, 139, 250, 0.3);
+}
+
+/* ── Mutation Score Ring ── */
+.mutation-score-ring {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  border: 4px solid var(--score-color, var(--neon-green));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 0 16px color-mix(in srgb, var(--score-color, var(--neon-green)) 25%, transparent);
+}
+.mutation-score-inner { text-align: center; }
+.mutation-score-pct { font-size: 1.1rem; font-weight: 700; line-height: 1.1; }
+.mutation-score-label { font-size: 0.55rem; font-weight: 600; text-transform: uppercase; color: var(--text-secondary); }
+.mutation-list { max-height: 200px; overflow-y: auto; }
+
+/* ── Blast Radius ── */
+.blast-radius-row {
+  background: var(--bg-card);
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  transition: border-color 0.2s;
+}
+.blast-radius-row:hover {
+  border-color: rgba(255, 76, 76, 0.3);
+}
+.blast-affected-badge {
+  background: rgba(148, 163, 184, 0.1);
+  color: var(--text-secondary);
+  font-size: 0.6rem;
+  font-weight: 500;
+}
+
+/* ── Data Lineage ── */
+.lineage-field { border-bottom: 1px solid rgba(148, 163, 184, 0.08); padding-bottom: 0.75rem; }
+.lineage-field:last-child { border-bottom: none; }
+.lineage-field-name {
+  background: rgba(56, 189, 248, 0.1);
+  color: var(--neon-blue);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.lineage-stages { overflow-x: auto; }
+.lineage-stage {
+  min-width: 110px;
+  max-width: 160px;
+  flex-shrink: 0;
+}
+.lineage-stage-system {
+  border-left: 3px solid;
+  padding: 2px 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+.lineage-stage-format {
+  font-size: 0.6rem;
+  color: var(--text-secondary);
+  padding-left: 9px;
+}
+.lineage-arrow {
+  font-size: 0.7rem;
+  align-self: center;
+  flex-shrink: 0;
+}
+
+/* ── Test Impact Ranking ── */
+.impact-bar-bg {
+  height: 6px;
+  background: rgba(148, 163, 184, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.impact-bar {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.6s ease-out;
+}
+
+/* ── Latency Simulation ── */
+.latency-gauge {
+  flex: 1;
+  min-width: 120px;
+  background: var(--bg-card);
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  border-radius: 8px;
+  padding: 0.75rem;
+}
+.latency-gauge-bar {
+  height: 8px;
+  background: rgba(148, 163, 184, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+  margin: 0.25rem 0;
+}
+.latency-gauge-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 1s ease-out;
+}
+
+/* ── Dead Letter Queue ── */
+.dlq-message {
+  background: var(--bg-card);
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  transition: border-color 0.2s;
+}
+.dlq-message:hover { border-color: rgba(255, 76, 76, 0.2); }
+.dlq-retry-dots { display: flex; gap: 4px; }
+.dlq-retry-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(148, 163, 184, 0.15);
+}
+.dlq-retry-dot.used {
+  background: var(--neon-amber);
+  box-shadow: 0 0 4px rgba(245, 158, 11, 0.3);
+}

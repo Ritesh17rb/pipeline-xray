@@ -1,3 +1,12 @@
+const CI_STEP_DELAYS = [1000, 1500, 2000, 1000, 1000, 1500];
+
+function stepIcon(status) {
+  if (status === "queued") return '<i class="bi bi-circle ci-step-icon ci-step-queued me-2"></i>';
+  if (status === "running") return '<i class="bi bi-arrow-repeat ci-step-icon ci-step-running me-2"></i>';
+  if (status === "success") return '<i class="bi bi-check-circle-fill text-success ci-step-icon me-2"></i>';
+  return '<i class="bi bi-circle ci-step-icon me-2"></i>';
+}
+
 export function renderCiSummary(summary) {
   const container = document.getElementById("ci-view");
   if (!container) return;
@@ -7,23 +16,23 @@ export function renderCiSummary(summary) {
   }
 
   const providers = [
-    { id: "github", label: "GitHub Actions", badge: "bi-github", yamlHeader: "# GitHub Actions workflow" },
-    { id: "gitlab", label: "GitLab CI", badge: "bi-git", yamlHeader: "# .gitlab-ci.yml snippet" },
-    { id: "jenkins", label: "Jenkins", badge: "bi-gear-wide-connected", yamlHeader: "# Jenkinsfile stage" },
+    { id: "github", label: "GitHub Actions", badge: "bi-github", yaml: summary.yaml_github || summary.yaml_snippet },
+    { id: "gitlab", label: "GitLab CI", badge: "bi-git", yaml: summary.yaml_gitlab || summary.yaml_snippet },
+    { id: "jenkins", label: "Jenkins", badge: "bi-gear-wide-connected", yaml: summary.yaml_jenkins || summary.yaml_snippet },
   ];
 
-  const stepsHtml = (summary.steps || [])
-    .map((step) => {
-      const icon =
-        step.status === "success"
-          ? '<i class="bi bi-check-circle-fill text-success me-2"></i>'
-          : '<i class="bi bi-x-circle-fill text-danger me-2"></i>';
+  const steps = summary.steps || [];
+  const stepsHtml = steps
+    .map((step, idx) => {
+      const status = step.status || "queued";
+      const logBody = step.log_body ? step.log_body.replace(/</g, "&lt;").replace(/>/g, "&gt;") : "";
       return `
-        <div class="d-flex align-items-start mb-2">
-          ${icon}
-          <div>
+        <div class="ci-step-row d-flex align-items-start mb-2 rounded px-2 py-1" data-step-index="${idx}" role="button" title="Click to expand log">
+          ${stepIcon(status)}
+          <div class="flex-grow-1">
             <div class="fw-semibold">${step.name}</div>
-            <div class="small text-secondary">${step.duration_seconds.toFixed(1)}s &bull; ${step.log_summary}</div>
+            <div class="small text-secondary ci-step-summary">${step.duration_seconds.toFixed(1)}s &bull; ${step.log_summary}</div>
+            <pre class="ci-step-log bg-dark text-light rounded small p-2 mt-1 mb-0 d-none"><code>${logBody}</code></pre>
           </div>
         </div>`;
     })
@@ -43,7 +52,20 @@ export function renderCiSummary(summary) {
     )
     .join("");
 
-  container.innerHTML = `
+  const prStatusHtml = `
+    <div class="col-12 mb-3" id="ci-pr-status">
+      <div class="ci-pr-mock border rounded px-3 py-2 d-flex align-items-center gap-3 flex-wrap">
+        <span class="fw-semibold">Pull Request <span class="text-secondary">#42</span></span>
+        <span class="ci-pr-check"><i class="bi bi-check-circle-fill text-success me-1"></i>Lint</span>
+        <span class="ci-pr-check"><i class="bi bi-check-circle-fill text-success me-1"></i>Build</span>
+        <span class="ci-pr-check ci-pr-pending"><i class="bi bi-arrow-repeat me-1"></i>Tests</span>
+        <span class="ci-pr-check"><i class="bi bi-dash-circle text-secondary me-1"></i>Deploy</span>
+      </div>
+    </div>`;
+
+  container.innerHTML =
+    prStatusHtml +
+    `
     <div class="col-12">
       <div class="d-flex justify-content-between align-items-center mb-2">
         <div class="small text-secondary">CI providers</div>
@@ -56,7 +78,7 @@ export function renderCiSummary(summary) {
           <div class="fw-semibold">${summary.pipeline_name}</div>
           <div class="small text-secondary">Generated CI pipeline</div>
         </div>
-        <div class="card-body">${stepsHtml}</div>
+        <div class="card-body" id="ci-steps-container">${stepsHtml}</div>
       </div>
     </div>
     <div class="col-12 col-lg-6">
@@ -87,9 +109,65 @@ export function renderCiSummary(summary) {
       btn.classList.add("btn-primary");
       const config = providers.find((p) => p.id === btn.dataset.provider) || providers[0];
       const yamlEl = document.getElementById("ci-yaml-snippet");
-      if (yamlEl) yamlEl.textContent = `${config.yamlHeader}\n\n${summary.yaml_snippet}`;
+      if (yamlEl && config.yaml) yamlEl.textContent = config.yaml;
     });
   });
+
+  container.querySelectorAll(".ci-step-row").forEach((row) => {
+    row.addEventListener("click", () => {
+      const logEl = row.querySelector(".ci-step-log");
+      if (logEl) logEl.classList.toggle("d-none");
+    });
+  });
+
+  runCiAnimation(container, steps);
+}
+
+function runCiAnimation(container, steps) {
+  if (!steps.length) return;
+  const stepsContainer = container.querySelector("#ci-steps-container");
+  if (!stepsContainer) return;
+
+  let stepIndex = 0;
+  function runNext() {
+    if (stepIndex >= steps.length) {
+      updatePrStatusChecks(container, true);
+      return;
+    }
+    const row = stepsContainer.querySelector(`[data-step-index="${stepIndex}"]`);
+    if (row) {
+      const iconSlot = row.querySelector(".ci-step-icon");
+      if (iconSlot) {
+        iconSlot.outerHTML = stepIcon("running");
+        row.classList.add("ci-step-running-row");
+      }
+    }
+    const duration = (steps[stepIndex] && steps[stepIndex].duration_seconds) ? steps[stepIndex].duration_seconds * 1000 : 1000;
+    const delay = CI_STEP_DELAYS[stepIndex] != null ? CI_STEP_DELAYS[stepIndex] : 1000;
+    setTimeout(() => {
+      if (row) {
+        const iconSlot = row.querySelector(".ci-step-icon");
+        if (iconSlot) {
+          iconSlot.outerHTML = stepIcon("success");
+          row.classList.remove("ci-step-running-row");
+          row.classList.add("ci-step-success-row");
+        }
+      }
+      stepIndex++;
+      setTimeout(runNext, 400);
+    }, delay);
+  }
+  setTimeout(runNext, 500);
+}
+
+function updatePrStatusChecks(container, allPassed) {
+  const pr = container.querySelector("#ci-pr-status");
+  if (!pr) return;
+  const pending = pr.querySelector(".ci-pr-pending");
+  if (pending) {
+    pending.classList.remove("ci-pr-pending");
+    pending.innerHTML = allPassed ? '<i class="bi bi-check-circle-fill text-success me-1"></i>Tests' : '<i class="bi bi-x-circle-fill text-danger me-1"></i>Tests';
+  }
 }
 
 export function renderMocks(mockResponse) {

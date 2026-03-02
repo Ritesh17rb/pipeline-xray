@@ -9,7 +9,7 @@ import {
 } from "./animation.js";
 import { initGraph, handleXrayEvent, resetGraph, paintNodeRisk, setExpectedTests } from "./graph.js";
 import { renderCiSummary, renderMocks } from "./ci_view.js";
-import { specPreview, generateTests, streamCodeChunks, streamXrayEvents, getCiSummary, getMocksData } from "./backend.js";
+import { specPreview, generateTests, streamCodeChunks, streamXrayEvents, getCiSummary, getMocksData, getLastTestsInOrder, getMutationScore, getBlastRadius, getDataLineage, getTestImpactRanking, getSchemaDiff, getLatencySimulation, getDlqData } from "./backend.js";
 
 // ── State ──
 let currentSessionId = null;
@@ -273,6 +273,8 @@ async function launchXray() {
   xrayEventsHistory = [];
   lastGenData = null;
   hideExecSummary();
+  const expertSection = document.getElementById("expert-comparison");
+  if (expertSection) expertSection.classList.add("d-none");
   expandSpecCode();
 
   const startTime = Date.now();
@@ -338,6 +340,13 @@ async function launchXray() {
     renderFlakinessHeatmap(genData.flakiness_map || {});
     renderSyntheticTwin(genData.total_tests);
     renderSelfHealingPreview();
+    renderMutationScore(genData.total_tests);
+    renderBlastRadius();
+    renderDataLineage();
+    renderTestImpactRanking();
+    renderSchemaDiff();
+    renderLatencySimulation();
+    renderDlq();
     paintNodeRisk(genData.flakiness_map || {});
     setExpectedTests(genData.total_tests);
 
@@ -348,12 +357,19 @@ async function launchXray() {
 
     // Stream code via in-memory backend
     await streamCodeChunks((chunk) => {
-      queueCodeTyping(chunk.category, chunk.test_name, chunk.code);
+      queueCodeTyping(chunk.category, chunk.test_name, chunk.code, {
+        expertTag: chunk.expertTag,
+        insightBeginner: chunk.insightBeginner,
+        insightExpert: chunk.insightExpert,
+        confidence: chunk.confidence,
+      });
     });
     await sleep(300);
 
+    renderExpertComparison();
+
     // CI + Mocks (in-memory)
-    renderCiSummary(getCiSummary(genData.total_tests));
+    renderCiSummary(getCiSummary(genData.total_tests, getLastTestsInOrder()));
     renderMocks(getMocksData());
 
     // ── ACT 4: Run X-Ray ──
@@ -540,6 +556,25 @@ function showRiskMitigated(usd) {
   requestAnimationFrame(step);
 }
 
+// ── Beginner vs Expert comparison card ──
+function renderExpertComparison() {
+  const container = document.getElementById("expert-comparison-ai-list");
+  const section = document.getElementById("expert-comparison");
+  if (!container || !section) return;
+  const tests = getLastTestsInOrder();
+  if (!tests.length) {
+    section.classList.add("d-none");
+    return;
+  }
+  container.innerHTML = tests
+    .map((t) => {
+      const tag = t.expertTag ? `<span class="badge expert-tag-badge me-1">${t.expertTag}</span>` : "";
+      return `<span class="d-inline-flex align-items-center mb-1">${tag}<span class="text-break">${t.name}</span></span>`;
+    })
+    .join("");
+  section.classList.remove("d-none");
+}
+
 // ── PII Leak Detection ──
 function renderPiiFindings(findings) {
   const container = document.getElementById("pii-results");
@@ -670,6 +705,211 @@ function appendAutoRepairSuggestions() {
   renderSelfHealingPreview();
 }
 
+// ── Mutation Score Analysis ──
+function renderMutationScore(totalTests) {
+  const container = document.getElementById("mutation-score-view");
+  if (!container) return;
+  const data = getMutationScore(totalTests);
+  const scoreColor = data.score >= 80 ? "var(--neon-green)" : data.score >= 60 ? "var(--neon-amber)" : "var(--neon-red)";
+  const scoreLabel = data.score >= 80 ? "STRONG" : data.score >= 60 ? "MODERATE" : "WEAK";
+
+  container.innerHTML = `
+    <div class="d-flex align-items-center gap-3 mb-3">
+      <div class="mutation-score-ring" style="--score-color:${scoreColor}">
+        <div class="mutation-score-inner">
+          <div class="mutation-score-pct" style="color:${scoreColor}">${data.score}%</div>
+          <div class="mutation-score-label">${scoreLabel}</div>
+        </div>
+      </div>
+      <div>
+        <div class="small fw-semibold mb-1">Mutation Kill Rate</div>
+        <div class="small text-secondary">${data.killed} of ${data.total} injected bugs caught by tests</div>
+        <div class="small text-secondary">${data.survived} mutants survived — potential blind spots</div>
+      </div>
+    </div>
+    <div class="mutation-list">
+      ${data.mutations.map((m) => `
+        <div class="d-flex align-items-center gap-2 mb-1">
+          <i class="bi ${m.killed ? "bi-check-circle-fill text-success" : "bi-x-circle-fill"}" style="${m.killed ? "" : "color:var(--neon-red)"}"></i>
+          <span class="small fw-medium" style="min-width:160px">${m.operator}</span>
+          <span class="small text-secondary flex-fill">${m.target}</span>
+          ${m.killed ? `<span class="badge" style="font-size:0.55rem;background:rgba(0,255,153,0.1);color:var(--neon-green)">KILLED</span>` : `<span class="badge" style="font-size:0.55rem;background:rgba(255,76,76,0.1);color:var(--neon-red)">SURVIVED</span>`}
+        </div>`).join("")}
+    </div>`;
+}
+
+// ── Blast Radius Map ──
+function renderBlastRadius() {
+  const container = document.getElementById("blast-radius-view");
+  if (!container) return;
+  const data = getBlastRadius();
+
+  container.innerHTML = `
+    <div class="small mb-2 text-secondary">When a node fails, these downstream systems are impacted. Click a row to see the cascade.</div>
+    ${data.impacts.map((imp) => {
+      const sevColor = imp.severity === "critical" ? "var(--neon-red)" : imp.severity === "high" ? "var(--neon-amber)" : "var(--neon-green)";
+      return `
+        <div class="blast-radius-row mb-2 p-2 rounded">
+          <div class="d-flex align-items-center gap-2 mb-1">
+            <i class="bi bi-bullseye" style="color:${sevColor}"></i>
+            <span class="fw-semibold small">${imp.failNode} failure</span>
+            <span class="badge" style="font-size:0.6rem;background:${sevColor}20;color:${sevColor}">${imp.severity.toUpperCase()}</span>
+            <span class="small ms-auto fw-bold" style="color:${sevColor}">${imp.exposure}</span>
+          </div>
+          <div class="d-flex flex-wrap gap-1">
+            ${imp.affected.map((a) => `<span class="badge blast-affected-badge">${a}</span>`).join("")}
+          </div>
+        </div>`;
+    }).join("")}`;
+}
+
+// ── Data Lineage Trace ──
+function renderDataLineage() {
+  const container = document.getElementById("lineage-view");
+  if (!container) return;
+  const data = getDataLineage();
+
+  container.innerHTML = data.map((field) => {
+    const stagesHtml = field.stages.map((s, i) => {
+      const colorVar = s.color === "green" ? "var(--neon-green)" : s.color === "red" ? "var(--neon-red)" : "var(--neon-amber)";
+      const connector = i < field.stages.length - 1 ? `<i class="bi bi-arrow-right lineage-arrow" style="color:var(--text-secondary)"></i>` : "";
+      return `<div class="lineage-stage"><div class="lineage-stage-system" style="border-color:${colorVar}">${s.system}</div><div class="lineage-stage-format">${s.format}</div></div>${connector}`;
+    }).join("");
+    return `
+      <div class="lineage-field mb-3">
+        <div class="d-flex align-items-center gap-2 mb-2">
+          <code class="lineage-field-name">${field.field}</code>
+        </div>
+        <div class="lineage-stages d-flex align-items-start gap-1 flex-wrap">${stagesHtml}</div>
+      </div>`;
+  }).join("");
+}
+
+// ── Test Impact Ranking ──
+function renderTestImpactRanking() {
+  const container = document.getElementById("impact-ranking-view");
+  if (!container) return;
+  const ranked = getTestImpactRanking(getLastTestsInOrder());
+  const maxDaily = ranked.length > 0 ? ranked[0].daily : 1;
+
+  container.innerHTML = `
+    <div class="small mb-2 text-secondary">Tests ranked by daily business exposure. Higher = more critical to catch.</div>
+    ${ranked.slice(0, 8).map((t, i) => {
+      const pColor = t.priority === "critical" ? "var(--neon-red)" : t.priority === "high" ? "var(--neon-amber)" : t.priority === "medium" ? "var(--neon-blue)" : "var(--text-secondary)";
+      const barPct = Math.max(5, (t.daily / maxDaily) * 100);
+      return `
+        <div class="d-flex align-items-center gap-2 mb-2">
+          <span class="small fw-bold" style="min-width:18px;color:${pColor}">#${i + 1}</span>
+          <div class="flex-fill">
+            <div class="small fw-medium text-truncate" style="max-width:280px" title="${t.name}">${t.name.replace("test_", "")}</div>
+            <div class="impact-bar-bg mt-1"><div class="impact-bar" style="width:${barPct}%;background:${pColor}"></div></div>
+          </div>
+          <span class="small fw-bold" style="min-width:80px;text-align:right;color:${pColor}">$${(t.daily / 1000000).toFixed(1)}M</span>
+          ${t.expertTag ? `<span class="badge expert-tag-badge" style="font-size:0.55rem">${t.expertTag}</span>` : ""}
+        </div>`;
+    }).join("")}`;
+}
+
+// ── Schema Version Diff ──
+function renderSchemaDiff() {
+  const container = document.getElementById("schema-diff-view");
+  if (!container) return;
+  const data = getSchemaDiff();
+  const typeIcons = { added: "bi-plus-circle-fill text-success", modified: "bi-pencil-fill", removed: "bi-dash-circle-fill" };
+  const typeColors = { added: "var(--neon-green)", modified: "var(--neon-amber)", removed: "var(--neon-red)" };
+
+  container.innerHTML = `
+    <div class="d-flex align-items-center gap-2 mb-3">
+      <span class="badge" style="background:var(--bg-card);color:var(--text-secondary);border:1px solid rgba(148,163,184,0.2)">${data.from}</span>
+      <i class="bi bi-arrow-right text-secondary"></i>
+      <span class="badge badge-glow-green">${data.to}</span>
+      <span class="small text-secondary ms-2">${data.changes.length} changes</span>
+      <span class="badge" style="font-size:0.6rem;background:rgba(0,255,153,0.1);color:var(--neon-green)">${data.newTestsNeeded} new tests needed</span>
+      <span class="badge" style="font-size:0.6rem;background:rgba(255,76,76,0.1);color:var(--neon-red)">${data.breakingTests} breaking</span>
+    </div>
+    ${data.changes.map((c) => `
+      <div class="d-flex align-items-start gap-2 mb-2">
+        <i class="bi ${typeIcons[c.type]}" style="color:${typeColors[c.type]};margin-top:2px"></i>
+        <div>
+          <code class="small" style="color:${typeColors[c.type]}">${c.path}</code>
+          <div class="small text-secondary">${c.desc}</div>
+          <div class="small fw-medium" style="color:var(--neon-purple)">${c.impact}</div>
+        </div>
+      </div>`).join("")}`;
+}
+
+// ── Latency & Throughput Simulation ──
+function renderLatencySimulation() {
+  const container = document.getElementById("latency-sim-view");
+  if (!container) return;
+  const data = getLatencySimulation();
+  const throughputPct = Math.round((data.overallThroughput / data.targetRps) * 100);
+  const p99Status = data.overallP99 <= data.targetP99Ms ? "PASS" : "BREACH";
+  const p99Color = p99Status === "PASS" ? "var(--neon-green)" : "var(--neon-red)";
+
+  container.innerHTML = `
+    <div class="d-flex flex-wrap gap-3 mb-3">
+      <div class="latency-gauge text-center">
+        <div class="small text-secondary">Throughput</div>
+        <div class="fw-bold" style="color:${throughputPct >= 95 ? "var(--neon-green)" : "var(--neon-amber)"}">${data.overallThroughput.toLocaleString()} rps</div>
+        <div class="latency-gauge-bar"><div class="latency-gauge-fill" style="width:${throughputPct}%;background:${throughputPct >= 95 ? "var(--neon-green)" : "var(--neon-amber)"}"></div></div>
+        <div class="small text-secondary">Target: ${data.targetRps.toLocaleString()} rps</div>
+      </div>
+      <div class="latency-gauge text-center">
+        <div class="small text-secondary">P99 Latency</div>
+        <div class="fw-bold" style="color:${p99Color}">${data.overallP99}ms</div>
+        <div class="latency-gauge-bar"><div class="latency-gauge-fill" style="width:${Math.min(100, (data.overallP99 / 400) * 100)}%;background:${p99Color}"></div></div>
+        <div class="small text-secondary">Target: &lt;${data.targetP99Ms}ms</div>
+      </div>
+    </div>
+    <div class="small fw-semibold mb-2">Per-Node Breakdown</div>
+    ${data.nodes.map((n) => {
+      const isBottleneck = n.bottleneck;
+      const barColor = n.p99Ms > data.targetP99Ms ? "var(--neon-red)" : n.p99Ms > data.targetP99Ms * 0.8 ? "var(--neon-amber)" : "var(--neon-green)";
+      return `
+        <div class="d-flex align-items-center gap-2 mb-1">
+          ${isBottleneck ? '<i class="bi bi-exclamation-triangle-fill" style="color:var(--neon-red);font-size:0.7rem"></i>' : '<i class="bi bi-circle" style="color:var(--text-secondary);font-size:0.5rem"></i>'}
+          <span class="small fw-medium" style="min-width:120px">${n.name}</span>
+          <div class="flex-fill"><div class="flakiness-bar-bg"><div class="flakiness-bar" style="width:${Math.min(100, (n.p99Ms / 400) * 100)}%;background:${barColor}"></div></div></div>
+          <span class="small" style="min-width:50px;color:${barColor}">${n.p99Ms}ms</span>
+          ${isBottleneck ? '<span class="badge" style="font-size:0.55rem;background:rgba(255,76,76,0.1);color:var(--neon-red)">BOTTLENECK</span>' : ""}
+        </div>`;
+    }).join("")}
+    ${data.slaBreaches.length > 0 ? `
+      <div class="small fw-semibold mt-2 mb-1" style="color:var(--neon-red)">SLA Breaches</div>
+      ${data.slaBreaches.map((b) => `<div class="d-flex align-items-center gap-2 mb-1"><i class="bi bi-x-circle-fill" style="color:var(--neon-red);font-size:0.7rem"></i><span class="small">${b.node}: ${b.metric} = ${b.value} (threshold: ${b.threshold})</span></div>`).join("")}` : ""}`;
+}
+
+// ── Dead Letter Queue ──
+function renderDlq() {
+  const container = document.getElementById("dlq-view");
+  if (!container) return;
+  const data = getDlqData();
+  const statusIcons = { exhausted: "bi-x-circle text-secondary", poison: "bi-radioactive", retrying: "bi-arrow-repeat" };
+  const statusColors = { exhausted: "var(--text-secondary)", poison: "var(--neon-red)", retrying: "var(--neon-amber)" };
+
+  container.innerHTML = `
+    <div class="d-flex flex-wrap gap-2 mb-3">
+      <span class="badge" style="background:rgba(148,163,184,0.1);color:var(--text-secondary);font-size:0.7rem">${data.totalMessages} total messages</span>
+      <span class="badge" style="background:rgba(255,76,76,0.1);color:var(--neon-red);font-size:0.7rem">${data.poisonPills} poison pills</span>
+      <span class="badge" style="background:rgba(245,158,11,0.1);color:var(--neon-amber);font-size:0.7rem">${data.messages.filter((m) => m.status === "retrying").length} retrying</span>
+    </div>
+    ${data.messages.map((m) => `
+      <div class="dlq-message mb-2 p-2 rounded">
+        <div class="d-flex align-items-center gap-2 mb-1">
+          <i class="bi ${statusIcons[m.status]}" style="color:${statusColors[m.status]}"></i>
+          <code class="small" style="color:var(--neon-blue)">${m.id}</code>
+          <span class="badge" style="font-size:0.55rem;background:${statusColors[m.status]}20;color:${statusColors[m.status]}">${m.status.toUpperCase()}</span>
+          <span class="small text-secondary ms-auto">${m.age}</span>
+        </div>
+        <div class="small text-secondary">${m.reason}</div>
+        <div class="d-flex align-items-center gap-2 mt-1">
+          <span class="small" style="color:var(--text-secondary)">Retries: ${m.retries}/3</span>
+          <div class="dlq-retry-dots">${[0,1,2].map((i) => `<span class="dlq-retry-dot ${i < m.retries ? "used" : ""}"></span>`).join("")}</div>
+        </div>
+      </div>`).join("")}`;
+}
+
 // ── Section Navigation ──
 function scrollToSection(id) {
   const el = document.getElementById(id);
@@ -677,7 +917,7 @@ function scrollToSection(id) {
 }
 
 function initSectionNav() {
-  const sections = ["hero-section", "console-section", "spec-code-section", "xray-section", "insights-section"];
+  const sections = ["hero-section", "console-section", "spec-code-section", "xray-section", "insights-section", "advanced-section"];
   const dots = document.querySelectorAll(".section-nav-dot");
   const observer = new IntersectionObserver((entries) => {
     entries.forEach((entry) => {

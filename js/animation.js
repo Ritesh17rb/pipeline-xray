@@ -107,16 +107,25 @@ export function resetCodePanes() {
     codeEl.className = "language-python hljs";
     codeEl.innerHTML = `<span class="hljs-comment"># ${capitalize(cat)} tests will stream here...</span>`;
   });
+
+  document.querySelectorAll(".expert-insight-insert").forEach((el) => el.remove());
+
+  const countIds = ["count-happy", "count-edge", "count-malicious", "count-property"];
+  countIds.forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = "0";
+  });
 }
 
-export function queueCodeTyping(categoryLabel, testName, code) {
+export function queueCodeTyping(categoryLabel, testName, code, meta) {
   const key = CATEGORY_KEYS[categoryLabel];
   if (!key) return;
 
   const header = `\n\n# --- ${testName} ---\n`;
   const snippet = header + code + "\n";
+  const payload = { snippet, meta: meta || {} };
 
-  typingQueues[key].push(snippet);
+  typingQueues[key].push(payload);
   if (!typingState[key]) typingState[key] = startTypingLoop(key);
 }
 
@@ -124,6 +133,7 @@ function startTypingLoop(key) {
   const baseMs = 6;
   let buffer = "";
   let current = null;
+  let currentMeta = null;
   let pauseUntil = 0;
   let isFirstSnippet = editorContents[key].length === 0;
 
@@ -132,16 +142,20 @@ function startTypingLoop(key) {
     if (pauseUntil > now) return;
 
     if (!current) {
-      current = typingQueues[key].shift();
+      const payload = typingQueues[key].shift();
       buffer = "";
+      currentMeta = null;
 
-      if (!current) {
+      if (!payload) {
         clearInterval(typingState[key]);
         typingState[key] = null;
         applyHighlight(key);
         removeThinkingIndicator(key);
         return;
       }
+
+      current = typeof payload === "string" ? payload : payload.snippet;
+      currentMeta = typeof payload === "object" && payload.meta ? payload.meta : null;
 
       if (!isFirstSnippet) {
         showThinkingIndicator(key);
@@ -163,11 +177,59 @@ function startTypingLoop(key) {
     if (pane) pane.textContent = editorContents[key];
 
     if (buffer.length >= current.length) {
-      current = null;
-      isFirstSnippet = false;
       applyHighlight(key);
+      if (currentMeta && (currentMeta.expertTag || currentMeta.insightBeginner || currentMeta.insightExpert || currentMeta.confidence != null)) {
+        appendExpertInsight(key, currentMeta);
+      }
+      current = null;
+      currentMeta = null;
+      isFirstSnippet = false;
     }
   }, baseMs);
+}
+
+function appendExpertInsight(key, meta) {
+  const pane = document.getElementById(`code-${key}`);
+  if (!pane) return;
+  const paneParent = pane.closest(".tab-pane");
+  if (!paneParent) return;
+
+  const confidence = meta.confidence != null ? meta.confidence : 0.98;
+  const pct = Math.round(confidence * 100);
+  const confidenceClass = confidence >= 0.97 ? "confidence-high" : confidence >= 0.93 ? "confidence-medium" : "confidence-low";
+
+  let cardHtml = "";
+  if (meta.expertTag || meta.insightBeginner || meta.insightExpert) {
+    cardHtml = `
+      <div class="expert-insight-card mt-2 mb-2">
+        <div class="d-flex align-items-center gap-2 mb-2">
+          <i class="bi bi-mortarboard-fill expert-insight-icon"></i>
+          ${meta.expertTag ? `<span class="badge expert-tag-badge">${meta.expertTag}</span>` : ""}
+          <span class="badge ${confidenceClass} confidence-badge ms-auto">${pct}% deterministic</span>
+        </div>
+        <div class="row g-2 small">
+          <div class="col-6">
+            <div class="text-secondary mb-1">Beginner would</div>
+            <div class="expert-insight-text">${meta.insightBeginner || "—"}</div>
+          </div>
+          <div class="col-6">
+            <div class="text-secondary mb-1">Expert checks</div>
+            <div class="expert-insight-text fw-medium">${meta.insightExpert || "—"}</div>
+          </div>
+        </div>
+      </div>`;
+  } else if (meta.confidence != null) {
+    cardHtml = `<div class="expert-insight-card mt-2 mb-2 d-flex justify-content-end"><span class="badge ${confidenceClass} confidence-badge">${pct}% deterministic</span></div>`;
+  }
+
+  if (!cardHtml) return;
+
+  const pre = pane.closest("pre");
+  if (!pre || !pre.parentNode) return;
+  const div = document.createElement("div");
+  div.className = "expert-insight-insert";
+  div.innerHTML = cardHtml;
+  pre.parentNode.insertBefore(div, pre.nextSibling);
 }
 
 function showThinkingIndicator(key) {
@@ -229,8 +291,10 @@ export function updateCategoryCounts(counts) {
     "Malicious Inputs": "count-malicious",
     "Property-Based": "count-property",
   };
-  Object.entries(counts || {}).forEach(([label, value]) => {
+  const order = ["Happy Path", "Edge Cases", "Malicious Inputs", "Property-Based"];
+  order.forEach((label) => {
     const el = document.getElementById(map[label]);
+    const value = counts && counts[label] !== undefined ? counts[label] : 0;
     if (el) el.textContent = String(value);
   });
 }
