@@ -10,6 +10,7 @@ import {
 import { initGraph, handleXrayEvent, resetGraph, paintNodeRisk, setExpectedTests } from "./graph.js";
 import { renderCiSummary, renderMocks } from "./ci_view.js";
 import { specPreview, generateTests, streamCodeChunks, streamXrayEvents, getCiSummary, getMocksData, getLastTestsInOrder, getMutationScore, getBlastRadius, getDataLineage, getTestImpactRanking, getSchemaDiff, getLatencySimulation, getDlqData } from "./backend.js";
+import { initParticles, setParticlePhase } from "./particles.js";
 
 // ── State ──
 let currentSessionId = null;
@@ -161,10 +162,12 @@ let lastGenData = null;
 // ── Initialization ──
 window.addEventListener("DOMContentLoaded", () => {
   initGraph();
+  initParticles();
   attachEventHandlers();
   prefillLlmConfig();
   loadDefaultScenario();
   initSectionNav();
+  initFullscreenXray();
 
   const observer = new MutationObserver(() => { initGraph(); });
   observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-bs-theme"] });
@@ -257,6 +260,25 @@ function loadScenario(scenario) {
   }
 }
 
+// ── Step Narration Overlay ──
+function showStepNarration(title, subtitle, icon = "bi-lightning-charge-fill") {
+  let overlay = document.getElementById("step-narration-overlay");
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.id = "step-narration-overlay";
+    overlay.className = "step-narration-overlay";
+    document.body.appendChild(overlay);
+  }
+  overlay.innerHTML = `<div class="step-narration-content">
+    <i class="bi ${icon} step-narration-icon"></i>
+    <div class="step-narration-title">${title}</div>
+    <div class="step-narration-subtitle">${subtitle}</div>
+    <div class="step-narration-progress"><div class="step-narration-bar"></div></div>
+  </div>`;
+  overlay.classList.add("visible");
+  return new Promise(r => setTimeout(() => { overlay.classList.remove("visible"); setTimeout(r, 400); }, 2800));
+}
+
 // ── The 4-Act Orchestrated Flow ──
 async function launchXray() {
   if (isRunning) return;
@@ -276,26 +298,39 @@ async function launchXray() {
   const expertSection = document.getElementById("expert-comparison");
   if (expertSection) expertSection.classList.add("d-none");
   expandSpecCode();
+  hideAnalyticsPanels();
+
+  // Launch ignition animation
+  if (launchBtn) {
+    launchBtn.classList.add("launching");
+    setTimeout(() => launchBtn.classList.remove("launching"), 800);
+  }
+  flashPhaseVignette();
 
   const startTime = Date.now();
 
   try {
     // ── ACT 1: Scan the spec ──
+    await showStepNarration("ACT 1 — Scanning Spec", "The AI reads your messy API spec, identifies endpoints, risks, and quirks.", "bi-search");
     setPhase("scanning");
-    scrollToSection("console-section");
+    setParticlePhase("scanning");
+    showActSubStep("Parsing API specification...");
     appendLog("system", "ACT 1: Scanning the messy API specification...");
     specScanStart();
 
     const specText = document.getElementById("spec-text")?.value || "";
     const isCobolScenario = specText.includes("COBOL") || specText.includes("PIC X");
-    await sleep(600);
+    await sleep(1200);
 
     if (isCobolScenario) {
       appendLog("system", "LEGACY ARCHAEOLOGY: Detected COBOL fixed-width record layout. Transpiling to Pydantic...");
       runArchaeologyTranspilation();
+      await sleep(1500);
     }
 
+    showActSubStep("Identifying endpoints and risk hotspots...");
     appendLog("agent", "Reading spec... identifying endpoints, types, constraints, and known quirks.");
+    await sleep(800);
     const llmAnalysis = await callLlm(
       `You are an expert payments SRE. Analyze this API spec in 4-5 punchy bullet points. Focus on: schema drift risks, type mutation dangers, idempotency concerns, and what property-based tests you'd write. Be specific and technical.\n\n${specText}`,
     );
@@ -308,15 +343,25 @@ async function launchXray() {
 
     appendLog("signal", `Found ${previewData.summary.endpoint_count} endpoints. Risks: ${previewData.summary.risk_flags.slice(0, 3).join(" | ")}`);
     specScanStop();
-    await sleep(400);
+    await sleep(1200);
 
-    // ── ACT 2 & 3: Generate tests ──
+    // ── ACT 2: Generate tests ──
+    await showStepNarration("ACT 2 — Generating Tests", "Building expert-grade test suite using validator chain: Schema → Type → Security → Business Logic.", "bi-code-slash");
     setPhase("generating");
-    scrollToSection("ai-strategy-section");
+    setParticlePhase("generating");
+    flashPhaseVignette();
+    showActSubStep("Building test strategy...");
     showAiStrategy();
+    await sleep(600);
     appendLog("system", "ACT 2: Generating expert-grade test suite...");
     appendLog("agent", "Building categories: Happy Path, Edge Cases, Malicious Inputs, Property-Based Testing.");
+    await sleep(1000);
 
+    // Show validator pipeline steps
+    showActSubStep("Running validator chain: Schema → Type → Security → Logic");
+    await showValidatorPipeline();
+
+    showActSubStep("Generating test code...");
     const genData = generateTests(currentSessionId, currentModel, chaosLevel, complianceTags);
     lastGenData = genData;
     updateCategoryCounts(genData.categories);
@@ -326,13 +371,16 @@ async function launchXray() {
     animateTimeSaved(genData.estimated_minutes_saved);
 
     appendLog("signal", `Generated ${genData.total_tests} tests across 4 categories in ${elapsedSec}s. Human equivalent: ${(genData.estimated_minutes_saved / 60).toFixed(1)} hours.`);
+    await sleep(600);
     if (chaosLevel > 0) {
       appendLog("warning", `Chaos Level ${["LOW","MEDIUM","HIGH"][chaosLevel]}: injected ${chaosLevel === 2 ? "ReDoS, XML bombs, recursive nesting" : "deep nesting, oversized payloads"} tests.`);
+      await sleep(400);
     }
     if (complianceTags.length > 0) {
       appendLog("signal", `Compliance overlay active: ${complianceTags.join(", ")}. Tests tagged with regulatory mappings.`);
       const badge = document.getElementById("compliance-active-badge");
       if (badge) { badge.textContent = complianceTags.join(" + "); badge.classList.remove("d-none"); }
+      await sleep(400);
     }
 
     showRiskMitigated(genData.risk_mitigated_usd || 0);
@@ -355,6 +403,7 @@ async function launchXray() {
     );
     if (genNarration) appendLog("agent", genNarration);
 
+    await sleep(800);
     // Stream code via in-memory backend
     await streamCodeChunks((chunk) => {
       queueCodeTyping(chunk.category, chunk.test_name, chunk.code, {
@@ -364,20 +413,24 @@ async function launchXray() {
         confidence: chunk.confidence,
       });
     });
-    await sleep(300);
+    await sleep(800);
 
     renderExpertComparison();
 
     // CI + Mocks (in-memory)
     renderCiSummary(getCiSummary(genData.total_tests, getLastTestsInOrder()));
     renderMocks(getMocksData());
+    await sleep(600);
 
-    // ── ACT 4: Run X-Ray ──
+    // ── ACT 3: Run X-Ray ──
+    await showStepNarration("ACT 3 — Pipeline X-Ray", "Running every test through the data pipe. Watch nodes light up green or red in real time.", "bi-activity");
     setPhase("xray");
+    setParticlePhase("xray");
+    flashPhaseVignette();
     collapseSpecCode();
-    await sleep(200);
-    scrollToSection("xray-section");
-    appendLog("system", "ACT 4: Running tests through the data pipe. Watch the X-Ray light up...");
+    await sleep(600);
+    showActSubStep("Flowing data through pipeline nodes...");
+    appendLog("system", "ACT 3: Running tests through the data pipe. Watch the X-Ray light up...");
 
     const timeline = document.getElementById("xray-timeline");
     await streamXrayEvents((evt) => {
@@ -387,6 +440,7 @@ async function launchXray() {
         handleXrayEvent(evt);
       }
     });
+    await sleep(600);
 
     appendLog("signal", "X-Ray complete. Click any red node to see the AI's explanation and auto-repair suggestion.");
 
@@ -395,11 +449,17 @@ async function launchXray() {
     );
     if (finalSummary) appendLog("agent", finalSummary);
 
+    await sleep(500);
     appendAutoRepairSuggestions();
+
+    // ── ACT 4: Results ──
+    await showStepNarration("ACT 4 — Analysis Complete", "Review findings, apply fixes, and drill down into test reasoning.", "bi-check-lg");
+    hideActSubStep();
     setPhase("complete");
+    setParticlePhase("complete");
     if (statusEl) statusEl.textContent = "X-Ray sequence complete.";
     showExecSummary();
-    scrollToSection("exec-summary-section");
+    revealAnalyticsPanels();
   } catch (err) {
     console.error(err);
     appendLog("warning", `Error: ${err.message}`);
@@ -451,6 +511,7 @@ function showTimeSaved(testCount, minutesSaved, elapsedSec) {
   if (metrics) metrics.style.display = "flex";
   if (testsEl) testsEl.textContent = String(testCount);
   if (secsEl) secsEl.textContent = String(elapsedSec);
+  spawnTimeSparks();
 }
 
 // ── Agent Console Helpers ──
@@ -481,6 +542,25 @@ function updateActProgress(currentPhase) {
   }
 }
 
+// ── Act Sub-Step Display ──
+function showActSubStep(text) {
+  let container = document.getElementById("act-substep-display");
+  if (!container) {
+    container = document.createElement("div");
+    container.id = "act-substep-display";
+    container.className = "act-substep-display";
+    const actProgress = document.getElementById("act-progress");
+    if (actProgress) actProgress.parentNode.insertBefore(container, actProgress.nextSibling);
+  }
+  container.innerHTML = `<span class="act-substep-dot"></span><span class="act-substep-text">${text}</span>`;
+  container.classList.add("visible");
+}
+
+function hideActSubStep() {
+  const container = document.getElementById("act-substep-display");
+  if (container) container.classList.remove("visible");
+}
+
 function clearLog() {
   const log = document.getElementById("agent-console-log");
   if (log) log.innerHTML = "";
@@ -491,7 +571,10 @@ let typewriterQueue = Promise.resolve();
 function appendLog(kind, text) {
   const log = document.getElementById("agent-console-log");
   if (!log) return;
-  if (kind === "agent") { typewriterQueue = typewriterQueue.then(() => typewriteLines(log, text)); return; }
+  if (kind === "agent") {
+    typewriterQueue = typewriterQueue.then(() => showThinkingBubble(log)).then(() => typewriteLines(log, text));
+    return;
+  }
   const lines = text.split("\n").filter((l) => l.trim());
   lines.forEach((line) => {
     const div = document.createElement("div");
@@ -502,6 +585,21 @@ function appendLog(kind, text) {
   });
   while (log.childNodes.length > 80) log.removeChild(log.firstChild);
   log.scrollTop = log.scrollHeight;
+}
+
+// ── AI Thinking Bubble ──
+function showThinkingBubble(log) {
+  return new Promise((resolve) => {
+    const bubble = document.createElement("div");
+    bubble.className = "agent-thinking-bubble";
+    bubble.innerHTML = '<span class="thinking-dot"></span><span class="thinking-dot"></span><span class="thinking-dot"></span><span class="thinking-label">AI analyzing</span>';
+    log.appendChild(bubble);
+    log.scrollTop = log.scrollHeight;
+    setTimeout(() => {
+      if (bubble.parentNode) bubble.parentNode.removeChild(bubble);
+      resolve();
+    }, 1200 + Math.random() * 600);
+  });
 }
 
 function typewriteLines(log, text) {
@@ -681,13 +779,188 @@ function renderSelfHealingPreview() {
   container.innerHTML = `<div class="small mb-2" style="color:var(--text-secondary)">The AI detected <strong>${repairs.length}</strong> fixable issues. Click any failed node in the X-Ray to see and apply the auto-repair.</div>${repairs.map((r) => `<div class="d-flex align-items-center gap-2 mb-1"><i class="bi ${r.icon}" style="color:var(--neon-amber);font-size:0.8rem"></i><span class="small fw-semibold" style="min-width:160px">${r.field}</span><span class="small text-secondary">${r.type}</span><span class="badge ms-auto" style="font-size:0.55rem;background:rgba(245,158,11,0.12);color:var(--neon-amber)">${r.status}</span></div>`).join("")}`;
 }
 
-// ── Auto-Repair Suggestions ──
+// ── Validator Pipeline Visualization ──
+async function showValidatorPipeline() {
+  const section = document.getElementById("ai-strategy-section");
+  if (!section) return;
+  const grid = document.getElementById("ai-strategy-grid");
+  if (!grid) return;
+
+  const steps = [
+    { icon: "bi-file-earmark-code", label: "Schema Analysis", desc: "Parsing OpenAPI spec for required fields, types, and constraints", color: "var(--neon-blue)" },
+    { icon: "bi-shuffle", label: "Type Mutation Scan", desc: "Identifying fields where upstream sends unexpected types (Unix timestamps, booleans as strings)", color: "var(--neon-amber)" },
+    { icon: "bi-shield-exclamation", label: "Security Assessment", desc: "Checking for injection vectors, PII exposure, and regex vulnerabilities", color: "var(--neon-red)" },
+    { icon: "bi-diagram-3", label: "Business Logic Mapping", desc: "Cross-referencing endpoints for reconciliation gaps, idempotency, downstream impact", color: "var(--neon-green)" },
+  ];
+
+  // Show steps progressively
+  let pipelineHtml = '<div class="col-12"><div class="validator-pipeline">';
+  pipelineHtml += '<div class="validator-pipeline-title"><i class="bi bi-cpu me-1"></i>AI Validator Chain — How the test suite was decided</div>';
+  pipelineHtml += '<div class="validator-steps" id="validator-steps"></div></div></div>';
+  grid.insertAdjacentHTML("beforeend", pipelineHtml);
+
+  const stepsContainer = document.getElementById("validator-steps");
+  if (!stepsContainer) return;
+
+  for (let i = 0; i < steps.length; i++) {
+    const step = steps[i];
+    await sleep(700);
+    const stepEl = document.createElement("div");
+    stepEl.className = "validator-step entering";
+    stepEl.innerHTML = `
+      <div class="validator-step-number" style="background:${step.color}20;color:${step.color};border:1px solid ${step.color}40">${i + 1}</div>
+      <div class="validator-step-body">
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi ${step.icon}" style="color:${step.color}"></i>
+          <span class="fw-semibold small">${step.label}</span>
+          <span class="validator-step-spinner"></span>
+        </div>
+        <div class="small text-secondary mt-1">${step.desc}</div>
+      </div>`;
+    stepsContainer.appendChild(stepEl);
+    requestAnimationFrame(() => stepEl.classList.remove("entering"));
+
+    await sleep(600);
+    // Mark as complete
+    const spinner = stepEl.querySelector(".validator-step-spinner");
+    if (spinner) spinner.innerHTML = '<i class="bi bi-check-circle-fill" style="color:var(--neon-green)"></i>';
+  }
+  await sleep(400);
+}
+
+// ── Auto-Repair Suggestions (Deep Simulation) ──
 const REPAIRS_DB = {
-  test_events_accepts_unix_timestamp_and_normalizes: { fix: "Add a normalizer in the Transformer stage:\n\nif isinstance(event_date, int):\n    event_date = datetime.utcfromtimestamp(event_date).strftime('%Y-%m-%d')", desc: "The Transformer needs a type-coercion layer for event_date." },
-  test_create_payment_malicious_customer_name: { fix: "Add input sanitization in the Validator:\n\nimport bleach\ncustomer_name = bleach.clean(customer_name, strip=True)", desc: "The Validator lacks input sanitization." },
-  test_events_tolerates_extra_marketing_flag: { fix: "Switch the API Gateway from strict to permissive schema mode:\n\nschema_validation: 'warn'  # was: 'strict'", desc: "Change schema validation to tolerate upstream drift." },
-  test_cross_pipe_reconciliation_shares: { fix: "Add an idempotent reconciliation check after ledger posting:\n\nassert_ledger_balance(ticker, expected_shares, tolerance=0)", desc: "Add post-write reconciliation assertion." },
-  test_redos_polynomial_regex_attack: { fix: "Replace vulnerable regex with atomic grouping or set a 100ms timeout:\n\nimport regex\nregex.match(pattern, input, timeout=0.1)", desc: "Replace standard re with timeout-protected regex." },
+  test_events_accepts_unix_timestamp_and_normalizes: {
+    fix: "if isinstance(event_date, int):\n    event_date = datetime.utcfromtimestamp(event_date).strftime('%Y-%m-%d')",
+    before: "event_date = payload.get('event_date')  # Raw pass-through",
+    after: "event_date = payload.get('event_date')\nif isinstance(event_date, int):\n    event_date = datetime.utcfromtimestamp(event_date).strftime('%Y-%m-%d')",
+    desc: "The Transformer needs a type-coercion layer for event_date.",
+    node: "Transformer",
+    rootCause: "Upstream CRM sends Unix timestamps (1719792000) but the Transformer blindly passes them through. The downstream ledger expects ISO-8601 strings.",
+    impact: "All timestamp-dependent reconciliation reports would contain raw integers instead of dates, breaking T+0 settlement checks.",
+  },
+  test_create_payment_malicious_customer_name: {
+    fix: "import bleach\ncustomer_name = bleach.clean(customer_name, strip=True)",
+    before: "customer_name = payload['customer_name']  # No sanitization",
+    after: "import bleach\ncustomer_name = bleach.clean(payload['customer_name'], strip=True)",
+    desc: "The Validator lacks input sanitization.",
+    node: "Validator",
+    rootCause: "The Validator passes customer_name directly to the SQL query without escaping. SQL injection payload like Robert'); DROP TABLE payments; would execute.",
+    impact: "Critical security vulnerability — an attacker could drop database tables or exfiltrate PII via crafted customer names.",
+  },
+  test_events_tolerates_extra_marketing_flag: {
+    fix: "schema_validation: 'warn'  # was: 'strict'",
+    before: "schema_validation: 'strict'  # Rejects unknown fields",
+    after: "schema_validation: 'warn'  # Logs but accepts unknown fields",
+    desc: "Change schema validation to tolerate upstream drift.",
+    node: "APIGateway",
+    rootCause: "The API Gateway is in strict mode, rejecting any JSON with undocumented fields. The CRM upstream started sending extra_marketing_flag without updating the spec.",
+    impact: "100% of marketing opt-in events are silently dropped, causing $2.8M/day in lost attribution data.",
+  },
+  test_cross_pipe_reconciliation_shares: {
+    fix: "assert_ledger_balance(ticker, expected_shares, tolerance=0)",
+    before: "# No post-write verification",
+    after: "balance = ledger.get_balance(ticker)\nassert_ledger_balance(ticker, expected_shares, tolerance=0)",
+    desc: "Add post-write reconciliation assertion.",
+    node: "DB",
+    rootCause: "The trade pipe writes shares but never verifies the ledger received all of them. A race condition during batch ingestion can silently drop records.",
+    impact: "Silent data loss: 100 shares traded but only 90 posted. $16,500 discrepancy per occurrence.",
+  },
+  test_redos_polynomial_regex_attack: {
+    fix: "import regex\nregex.match(pattern, input, timeout=0.1)",
+    before: "import re\nre.match(r'^(a+)+$', event_type)  # Vulnerable",
+    after: "import regex  # Drop-in replacement with timeout\nregex.match(r'^(a+)+$', event_type, timeout=0.1)",
+    desc: "Replace standard re with timeout-protected regex.",
+    node: "Validator",
+    rootCause: "The event_type regex uses nested quantifiers (a+)+$ which cause polynomial backtracking on crafted input. A single request with 'aaa...!' ties up a worker thread for >5 seconds.",
+    impact: "Denial of Service: an attacker could exhaust all worker threads with just a few requests, bringing down the entire pipeline.",
+  },
+};
+
+// Deep Apply Fix simulation
+window._applyFixDeep = async function(testName, btnEl) {
+  const repair = REPAIRS_DB[testName];
+  if (!repair) return;
+
+  const card = btnEl.closest(".auto-repair-card");
+  if (!card) return;
+
+  // Disable button immediately
+  btnEl.disabled = true;
+  btnEl.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Analyzing...';
+
+  // Step 1: Root cause analysis
+  const stepsContainer = document.createElement("div");
+  stepsContainer.className = "fix-simulation-steps mt-3";
+  card.appendChild(stepsContainer);
+
+  await sleep(800);
+  stepsContainer.innerHTML = `
+    <div class="fix-step fix-step-active">
+      <div class="fix-step-header"><i class="bi bi-search" style="color:var(--neon-blue)"></i><span>Step 1: Root Cause Analysis</span></div>
+      <div class="fix-step-body">${repair.rootCause}</div>
+      <div class="fix-step-impact"><i class="bi bi-exclamation-triangle me-1"></i>${repair.impact}</div>
+    </div>`;
+
+  // Step 2: Before/After diff
+  await sleep(1500);
+  btnEl.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Generating fix...';
+  stepsContainer.innerHTML += `
+    <div class="fix-step fix-step-active">
+      <div class="fix-step-header"><i class="bi bi-file-diff" style="color:var(--neon-amber)"></i><span>Step 2: Code Diff</span></div>
+      <div class="fix-diff-panels">
+        <div class="fix-diff-panel fix-diff-before">
+          <div class="fix-diff-label">BEFORE</div>
+          <pre class="fix-diff-code"><code class="language-python">${repair.before}</code></pre>
+        </div>
+        <div class="fix-diff-arrow"><i class="bi bi-arrow-right"></i></div>
+        <div class="fix-diff-panel fix-diff-after">
+          <div class="fix-diff-label">AFTER</div>
+          <pre class="fix-diff-code"><code class="language-python">${repair.after}</code></pre>
+        </div>
+      </div>
+    </div>`;
+
+  // Highlight code
+  stepsContainer.querySelectorAll(".fix-diff-code code").forEach((el) => {
+    if (window.hljs) { try { el.innerHTML = window.hljs.highlight(el.textContent, { language: "python" }).value; el.classList.add("hljs"); } catch {} }
+  });
+
+  // Step 3: Re-run verification
+  await sleep(1800);
+  btnEl.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Re-running test...';
+  stepsContainer.innerHTML += `
+    <div class="fix-step fix-step-active">
+      <div class="fix-step-header"><i class="bi bi-play-circle" style="color:var(--neon-green)"></i><span>Step 3: Verification Re-run</span></div>
+      <div class="fix-step-body">
+        <div class="fix-rerun-progress"><div class="fix-rerun-bar"></div></div>
+        <div class="fix-rerun-log small font-monospace mt-2">
+          <div>Applying patch to ${repair.node}...</div>
+        </div>
+      </div>
+    </div>`;
+
+  await sleep(800);
+  const log = stepsContainer.querySelector(".fix-rerun-log");
+  if (log) log.innerHTML += `<div style="color:var(--neon-amber)">Re-running ${testName}...</div>`;
+  await sleep(1000);
+  if (log) log.innerHTML += `<div style="color:var(--neon-green)">✓ PASSED — fix verified successfully</div>`;
+
+  // Step 4: Update button and add metrics
+  await sleep(500);
+  btnEl.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i>Fix Verified';
+  btnEl.classList.add("btn-repair-applied");
+  stepsContainer.innerHTML += `
+    <div class="fix-step fix-step-success">
+      <div class="fix-step-header"><i class="bi bi-check-circle-fill" style="color:var(--neon-green)"></i><span>Fix Applied Successfully</span></div>
+      <div class="fix-metrics">
+        <span class="fix-metric"><i class="bi bi-shield-check"></i> Node: ${repair.node} → Healthy</span>
+        <span class="fix-metric"><i class="bi bi-arrow-down-circle"></i> Risk reduced</span>
+        <span class="fix-metric"><i class="bi bi-clock-history"></i> Auto-heal time: ${(Math.random() * 2 + 1).toFixed(1)}s</span>
+      </div>
+    </div>`;
+
+  appendLog("signal", `Fix applied: ${testName} at ${repair.node} — re-run verified PASS.`);
 };
 
 function appendAutoRepairSuggestions() {
@@ -696,7 +969,19 @@ function appendAutoRepairSuggestions() {
   const existing = detail.innerHTML;
   let html = "";
   for (const [testName, repair] of Object.entries(REPAIRS_DB)) {
-    html += `<div class="auto-repair-card mt-2"><div class="d-flex align-items-center gap-2 mb-1"><i class="bi bi-wrench" style="color:var(--neon-amber)"></i><span class="fw-semibold small">Self-Healing Suggestion</span><span class="badge text-bg-secondary" style="font-size:0.6rem">${testName}</span><button class="btn btn-repair ms-auto" onclick="this.innerHTML='<i class=\\'bi bi-check\\'></i> Applied';this.disabled=true;"><i class="bi bi-magic me-1"></i>Apply Fix</button></div><div class="small mb-2" style="color:var(--text-secondary)">${repair.desc}</div><pre class="auto-repair-code small p-2 rounded mb-0"><code class="language-python">${repair.fix}</code></pre></div>`;
+    html += `<div class="auto-repair-card mt-2">
+      <div class="d-flex align-items-center gap-2 mb-1">
+        <i class="bi bi-wrench" style="color:var(--neon-amber)"></i>
+        <span class="fw-semibold small">Self-Healing Suggestion</span>
+        <span class="badge text-bg-secondary" style="font-size:0.6rem">${testName}</span>
+        <button class="btn btn-repair ms-auto" onclick="window._applyFixDeep('${testName}', this)">
+          <i class="bi bi-magic me-1"></i>Apply Fix
+        </button>
+      </div>
+      <div class="small mb-2" style="color:var(--text-secondary)">${repair.desc}</div>
+      <div class="small mb-2 fix-reason-text"><i class="bi bi-info-circle me-1" style="color:var(--neon-blue)"></i><strong>Why this fix:</strong> ${repair.rootCause}</div>
+      <pre class="auto-repair-code small p-2 rounded mb-0"><code class="language-python">${repair.fix}</code></pre>
+    </div>`;
   }
   detail.innerHTML = existing + html;
   detail.querySelectorAll(".auto-repair-code code").forEach((el) => {
@@ -911,9 +1196,12 @@ function renderDlq() {
 }
 
 // ── Section Navigation ──
+// Auto-scrolling removed — users scroll at their own pace.
+// Keeping function signature so section nav clicks still work.
 function scrollToSection(id) {
+  // Only scroll when user explicitly clicks nav dots, not during auto flow
   const el = document.getElementById(id);
-  if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  if (el && !isRunning) el.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function initSectionNav() {
@@ -996,4 +1284,78 @@ function exportReport() {
   const a = document.createElement("a");
   a.href = url; a.download = `xray-report-${Date.now()}.txt`; a.click();
   URL.revokeObjectURL(url);
+}
+
+// ── Phase Transition Vignette ──
+function flashPhaseVignette(fail = false) {
+  const vig = document.createElement("div");
+  vig.className = `phase-vignette${fail ? " fail" : ""}`;
+  document.body.appendChild(vig);
+  setTimeout(() => vig.remove(), 700);
+}
+
+// ── Progressive Disclosure: Analytics Panels ──
+function hideAnalyticsPanels() {
+  document.querySelectorAll("#insights-section > div, #advanced-section > div").forEach((el) => {
+    el.classList.add("panel-reveal");
+    el.classList.remove("revealed");
+  });
+}
+
+function revealAnalyticsPanels() {
+  const panels = document.querySelectorAll(".panel-reveal");
+  panels.forEach((el, i) => {
+    setTimeout(() => el.classList.add("revealed"), i * 150);
+  });
+}
+
+// ── Fullscreen X-Ray Toggle ──
+let xrayFullscreen = false;
+let xrayBackdrop = null;
+
+function initFullscreenXray() {
+  const btn = document.getElementById("xray-fullscreen-btn");
+  if (!btn) return;
+  btn.addEventListener("click", toggleFullscreenXray);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && xrayFullscreen) toggleFullscreenXray();
+  });
+}
+
+function toggleFullscreenXray() {
+  const xrayCard = document.querySelector("#xray-section .xray-card");
+  const btn = document.getElementById("xray-fullscreen-btn");
+  if (!xrayCard) return;
+
+  xrayFullscreen = !xrayFullscreen;
+
+  if (xrayFullscreen) {
+    xrayBackdrop = document.createElement("div");
+    xrayBackdrop.className = "xray-fullscreen-backdrop";
+    xrayBackdrop.addEventListener("click", toggleFullscreenXray);
+    document.body.appendChild(xrayBackdrop);
+    xrayCard.classList.add("xray-fullscreen");
+    if (btn) btn.innerHTML = '<i class="bi bi-fullscreen-exit"></i>';
+  } else {
+    if (xrayBackdrop) { xrayBackdrop.remove(); xrayBackdrop = null; }
+    xrayCard.classList.remove("xray-fullscreen");
+    if (btn) btn.innerHTML = '<i class="bi bi-arrows-fullscreen"></i>';
+  }
+}
+
+// ── Spark Particles on Time Saved Counter ──
+function spawnTimeSparks() {
+  const container = document.getElementById("time-saved-float");
+  if (!container) return;
+  container.style.position = "relative";
+  for (let i = 0; i < 6; i++) {
+    const spark = document.createElement("div");
+    spark.className = "spark";
+    spark.style.left = "50%";
+    spark.style.top = "50%";
+    spark.style.setProperty("--spark-x", `${(Math.random() - 0.5) * 60}px`);
+    spark.style.setProperty("--spark-y", `${-Math.random() * 40 - 10}px`);
+    container.appendChild(spark);
+    setTimeout(() => spark.remove(), 800);
+  }
 }

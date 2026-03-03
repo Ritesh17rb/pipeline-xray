@@ -1,10 +1,10 @@
 const CI_STEP_DELAYS = [1000, 1500, 2000, 1000, 1000, 1500];
 
 function stepIcon(status) {
-  if (status === "queued") return '<i class="bi bi-circle ci-step-icon ci-step-queued me-2"></i>';
-  if (status === "running") return '<i class="bi bi-arrow-repeat ci-step-icon ci-step-running me-2"></i>';
-  if (status === "success") return '<i class="bi bi-check-circle-fill text-success ci-step-icon me-2"></i>';
-  return '<i class="bi bi-circle ci-step-icon me-2"></i>';
+  if (status === "queued") return '<i class="bi bi-circle ci-step-icon ci-github-check ci-step-queued me-2"></i>';
+  if (status === "running") return '<i class="bi bi-arrow-repeat ci-step-icon ci-github-check running me-2"></i>';
+  if (status === "success") return '<i class="bi bi-check-circle-fill ci-step-icon ci-github-check me-2"></i>';
+  return '<i class="bi bi-circle ci-step-icon ci-github-check me-2"></i>';
 }
 
 export function renderCiSummary(summary) {
@@ -73,12 +73,18 @@ export function renderCiSummary(summary) {
       </div>
     </div>
     <div class="col-12 col-lg-6">
-      <div class="card border-0 bg-body-tertiary h-100">
-        <div class="card-header">
-          <div class="fw-semibold">${summary.pipeline_name}</div>
-          <div class="small text-secondary">Generated CI pipeline</div>
-        </div>
-        <div class="card-body" id="ci-steps-container">${stepsHtml}</div>
+      <div class="ci-github-header">
+        <i class="bi bi-github ci-gh-icon"></i>
+        <span class="ci-github-title">${summary.pipeline_name}</span>
+        <span class="ci-github-badge ms-auto">In Progress</span>
+      </div>
+      <div class="ci-github-body" id="ci-steps-container">
+        ${steps.map((step, idx) => `
+          <div class="ci-github-step" data-step-index="${idx}">
+            <i class="bi bi-circle ci-github-check ci-step-icon ci-step-queued"></i>
+            <span>${step.name}</span>
+            <span class="step-duration">${step.duration_seconds.toFixed(1)}s</span>
+          </div>`).join("")}
       </div>
     </div>
     <div class="col-12 col-lg-6">
@@ -132,6 +138,9 @@ function runCiAnimation(container, steps) {
   function runNext() {
     if (stepIndex >= steps.length) {
       updatePrStatusChecks(container, true);
+      // Update the GitHub Actions badge to 'Passed'
+      const badge = container.querySelector(".ci-github-badge");
+      if (badge) { badge.textContent = "Passed"; badge.classList.remove("failed"); }
       return;
     }
     const row = stepsContainer.querySelector(`[data-step-index="${stepIndex}"]`);

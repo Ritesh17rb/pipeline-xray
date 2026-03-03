@@ -108,7 +108,7 @@ export function streamCodeChunks(onChunk) {
       }
       onChunk(entries[i]);
       i++;
-      setTimeout(next, 50);
+      setTimeout(next, 120);
     }
     next();
   });
@@ -177,7 +177,7 @@ export function streamXrayEvents(onEvent) {
       const evt = events[i];
       onEvent(evt);
       i++;
-      const delay = evt.event === "test_started" ? 80 : evt.event === "packet_flow" ? 50 : 120;
+      const delay = evt.event === "test_started" ? 350 : evt.event === "packet_flow" ? 200 : 500;
       setTimeout(next, delay);
     }
     next();

@@ -1,322 +1,436 @@
 <!DOCTYPE html>
 <html lang="en" data-bs-theme="dark">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Data Pipe X-Ray</title>
-    <link
-      rel="icon"
-      type="image/svg+xml"
-      href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+PGNpcmNsZSBjeD0iMTYiIGN5PSIxNiIgcj0iMTUiIGZpbGw9IiMyNTYzZWIiLz48cGF0aCBmaWxsPSIjZmZmIiBkPSJtMTYgNyAyIDcgNyAyLTcgMi0yIDctMi03LTctMiA3LTJaIi8+PC9zdmc+"
-    />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.11.1/styles/atom-one-dark.min.css" crossorigin="anonymous" />
-    <link rel="stylesheet" href="css/styles.css" />
-  </head>
-  <body>
-    <nav class="navbar navbar-expand-lg border-bottom">
-      <div class="container-fluid">
-        <a class="navbar-brand fw-semibold" href="#">
-          <i class="bi bi-diagram-3 me-2"></i>Data Pipe X-Ray
-        </a>
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent" aria-controls="navbarContent" aria-expanded="false" aria-label="Toggle navigation">
-          <span class="navbar-toggler-icon"></span>
-        </button>
-        <div class="collapse navbar-collapse" id="navbarContent">
-          <div class="ms-auto d-flex align-items-center gap-2">
-            <button id="configure-llm" class="btn btn-outline-light btn-sm d-flex align-items-center gap-2" type="button" data-bs-toggle="modal" data-bs-target="#llmConfigModal">
-              <i class="bi bi-magic"></i>
-              <span class="d-none d-md-inline">Configure LLM</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    </nav>
 
-    <!-- LLM Configuration Modal -->
-    <div class="modal fade" id="llmConfigModal" tabindex="-1" aria-labelledby="llmConfigModalLabel" aria-hidden="true">
-      <div class="modal-dialog modal-dialog-end modal-dialog-scrollable">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title" id="llmConfigModalLabel"><i class="bi bi-magic me-2"></i>Configure LLM (Demo)</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-          </div>
-          <div class="modal-body">
-            <p class="small text-secondary">Controls the real LLM used for spec analysis and narration. Test generation itself is deterministic (mocked) for demo stability.</p>
-            <div class="mb-3">
-              <label for="llm-model-select" class="form-label">Model</label>
-              <select id="llm-model-select" class="form-select">
-                <option value="gpt-4.1-nano" selected>gpt-4.1-nano (fast)</option>
-                <option value="gpt-4.1-mini">gpt-4.1-mini (richer reasoning)</option>
-                <option value="gpt-5-nano">gpt-5-nano</option>
-                <option value="gpt-5-mini">gpt-5-mini</option>
-              </select>
-            </div>
-            <div class="mb-3">
-              <label for="llm-temperature" class="form-label">Creativity (temperature)</label>
-              <input type="range" class="form-range" min="0" max="1" step="0.1" id="llm-temperature" value="0.2" />
-              <div class="d-flex justify-content-between small text-secondary"><span>Deterministic</span><span>Exploratory</span></div>
-            </div>
-            <div class="mb-3">
-              <label for="llm-base-url" class="form-label">Base URL</label>
-              <input type="url" class="form-control" id="llm-base-url" value="https://llmfoundry.straivedemo.com/openai/v1" />
-              <div class="form-text">LLM endpoint for live spec analysis and narration.</div>
-            </div>
-            <div class="mb-3">
-              <label for="llm-api-key" class="form-label">API key</label>
-              <input type="password" class="form-control" id="llm-api-key" autocomplete="off" placeholder="sk-***" />
-              <div class="form-text">Used for live analysis narration. Stays in-browser.</div>
-            </div>
-            <p class="small text-secondary mb-0">In production, this panel manages API keys, rate limits, and model routing.</p>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Close</button>
-            <button type="button" class="btn btn-primary btn-sm" id="llm-config-save" data-bs-dismiss="modal">Save settings</button>
-          </div>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Data Pipe X-Ray</title>
+  <link rel="icon" type="image/svg+xml"
+    href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+PGNpcmNsZSBjeD0iMTYiIGN5PSIxNiIgcj0iMTUiIGZpbGw9IiMyNTYzZWIiLz48cGF0aCBmaWxsPSIjZmZmIiBkPSJtMTYgNyAyIDcgNyAyLTcgMi0yIDctMi03LTctMiA3LTJaIi8+PC9zdmc+" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.11.1/styles/atom-one-dark.min.css"
+    crossorigin="anonymous" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+
+<body>
+  <canvas id="particle-canvas"></canvas>
+  <nav class="navbar navbar-expand-lg border-bottom">
+    <div class="container-fluid">
+      <a class="navbar-brand fw-semibold" href="#">
+        <i class="bi bi-diagram-3 me-2"></i>Data Pipe X-Ray
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent"
+        aria-controls="navbarContent" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarContent">
+        <div class="ms-auto d-flex align-items-center gap-2">
+          <button id="configure-llm" class="btn btn-outline-light btn-sm d-flex align-items-center gap-2" type="button"
+            data-bs-toggle="modal" data-bs-target="#llmConfigModal">
+            <i class="bi bi-magic"></i>
+            <span class="d-none d-md-inline">Configure LLM</span>
+          </button>
         </div>
       </div>
     </div>
+  </nav>
 
-    <main class="py-4">
-  <!-- Floating Metrics -->
-  <div class="floating-metrics" id="floating-metrics" style="display: none;">
-    <div class="float-card" id="time-saved-float">
-      <div class="ts-label">Human Time Saved</div>
-      <div class="ts-value"><span id="time-saved-value">0.0</span> hrs</div>
-      <div class="ts-sub"><span id="time-saved-tests">0</span> tests in <span id="time-saved-seconds">0</span>s</div>
-    </div>
-    <div class="float-card float-card-risk" id="risk-mitigated-float">
-      <div class="ts-label" style="color:var(--neon-amber)">Risk Mitigated</div>
-      <div class="ts-value">$<span id="risk-mitigated-value">0</span></div>
-      <div class="ts-sub">estimated cost of undetected failures</div>
+  <!-- LLM Configuration Modal -->
+  <div class="modal fade" id="llmConfigModal" tabindex="-1" aria-labelledby="llmConfigModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-end modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="llmConfigModalLabel"><i class="bi bi-magic me-2"></i>Configure LLM (Demo)</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p class="small text-secondary">Controls the real LLM used for spec analysis and narration. Test generation
+            itself is deterministic (mocked) for demo stability.</p>
+          <div class="mb-3">
+            <label for="llm-model-select" class="form-label">Model</label>
+            <select id="llm-model-select" class="form-select">
+              <option value="gpt-4.1-nano" selected>gpt-4.1-nano (fast)</option>
+              <option value="gpt-4.1-mini">gpt-4.1-mini (richer reasoning)</option>
+              <option value="gpt-5-nano">gpt-5-nano</option>
+              <option value="gpt-5-mini">gpt-5-mini</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label for="llm-temperature" class="form-label">Creativity (temperature)</label>
+            <input type="range" class="form-range" min="0" max="1" step="0.1" id="llm-temperature" value="0.2" />
+            <div class="d-flex justify-content-between small text-secondary">
+              <span>Deterministic</span><span>Exploratory</span></div>
+          </div>
+          <div class="mb-3">
+            <label for="llm-base-url" class="form-label">Base URL</label>
+            <input type="url" class="form-control" id="llm-base-url"
+              value="https://llmfoundry.straivedemo.com/openai/v1" />
+            <div class="form-text">LLM endpoint for live spec analysis and narration.</div>
+          </div>
+          <div class="mb-3">
+            <label for="llm-api-key" class="form-label">API key</label>
+            <input type="password" class="form-control" id="llm-api-key" autocomplete="off" placeholder="sk-***" />
+            <div class="form-text">Used for live analysis narration. Stays in-browser.</div>
+          </div>
+          <p class="small text-secondary mb-0">In production, this panel manages API keys, rate limits, and model
+            routing.</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+          <button type="button" class="btn btn-primary btn-sm" id="llm-config-save" data-bs-dismiss="modal">Save
+            settings</button>
+        </div>
+      </div>
     </div>
   </div>
 
-  <!-- Floating Section Nav -->
-  <nav class="section-nav" id="section-nav">
-    <a href="#hero-section" class="section-nav-dot active" data-label="Controls" title="Controls"><i class="bi bi-lightning-charge-fill"></i></a>
-    <a href="#console-section" class="section-nav-dot" data-label="Console" title="Console"><i class="bi bi-cpu"></i></a>
-    <a href="#spec-code-section" class="section-nav-dot" data-label="Spec & Code" title="Spec & Code"><i class="bi bi-code-slash"></i></a>
-    <a href="#xray-section" class="section-nav-dot" data-label="X-Ray" title="X-Ray"><i class="bi bi-activity"></i></a>
-    <a href="#insights-section" class="section-nav-dot" data-label="Features" title="Features"><i class="bi bi-stars"></i></a>
-    <a href="#advanced-section" class="section-nav-dot" data-label="Advanced" title="Advanced"><i class="bi bi-graph-up-arrow"></i></a>
-  </nav>
+  <main class="py-4">
+    <!-- Floating Metrics -->
+    <div class="floating-metrics" id="floating-metrics" style="display: none;">
+      <div class="float-card" id="time-saved-float">
+        <div class="ts-label">Human Time Saved</div>
+        <div class="ts-value"><span id="time-saved-value">0.0</span> hrs</div>
+        <div class="ts-sub"><span id="time-saved-tests">0</span> tests in <span id="time-saved-seconds">0</span>s</div>
+      </div>
+      <div class="float-card float-card-risk" id="risk-mitigated-float">
+        <div class="ts-label" style="color:var(--neon-amber)">Risk Mitigated</div>
+        <div class="ts-value">$<span id="risk-mitigated-value">0</span></div>
+        <div class="ts-sub">estimated cost of undetected failures</div>
+      </div>
+    </div>
 
-  <section class="container-fluid px-4">
+    <!-- Floating Section Nav -->
+    <nav class="section-nav" id="section-nav">
+      <a href="#hero-section" class="section-nav-dot active" data-label="Controls" title="Controls"><i
+          class="bi bi-lightning-charge-fill"></i></a>
+      <a href="#console-section" class="section-nav-dot" data-label="Console" title="Console"><i
+          class="bi bi-cpu"></i></a>
+      <a href="#spec-code-section" class="section-nav-dot" data-label="Spec & Code" title="Spec & Code"><i
+          class="bi bi-code-slash"></i></a>
+      <a href="#xray-section" class="section-nav-dot" data-label="X-Ray" title="X-Ray"><i
+          class="bi bi-activity"></i></a>
+      <a href="#insights-section" class="section-nav-dot" data-label="Features" title="Features"><i
+          class="bi bi-stars"></i></a>
+      <a href="#advanced-section" class="section-nav-dot" data-label="Advanced" title="Advanced"><i
+          class="bi bi-graph-up-arrow"></i></a>
+    </nav>
 
-    <!-- Executive Summary (hidden until complete) -->
-    <div class="row mb-4 d-none" id="exec-summary-section">
-      <div class="col-12">
-        <div class="exec-summary-card">
-          <div class="d-flex align-items-center justify-content-between mb-3">
-            <div class="d-flex align-items-center gap-2">
-              <span class="badge badge-glow-green"><i class="bi bi-clipboard-data me-1"></i>Executive Summary</span>
-              <span class="small text-secondary">AI-powered data pipe analysis complete</span>
+    <section class="container-fluid px-4">
+
+      <!-- Executive Summary (hidden until complete) -->
+      <div class="row mb-4 d-none" id="exec-summary-section">
+        <div class="col-12">
+          <div class="exec-summary-card">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+              <div class="d-flex align-items-center gap-2">
+                <span class="badge badge-glow-green"><i class="bi bi-clipboard-data me-1"></i>Executive Summary</span>
+                <span class="small text-secondary">AI-powered data pipe analysis complete</span>
+              </div>
+              <button class="btn btn-sm btn-export" id="export-report-btn"><i class="bi bi-download me-1"></i>Export
+                Report</button>
             </div>
-            <button class="btn btn-sm btn-export" id="export-report-btn"><i class="bi bi-download me-1"></i>Export Report</button>
-          </div>
-          <div class="row g-3" id="exec-summary-grid">
-            <div class="col-6 col-md-4 col-lg-2"><div class="exec-metric"><div class="exec-metric-value" id="exec-total-tests">0</div><div class="exec-metric-label">Tests Generated</div></div></div>
-            <div class="col-6 col-md-4 col-lg-2"><div class="exec-metric exec-metric-pass"><div class="exec-metric-value" id="exec-passed">0</div><div class="exec-metric-label">Passed</div></div></div>
-            <div class="col-6 col-md-4 col-lg-2"><div class="exec-metric exec-metric-fail"><div class="exec-metric-value" id="exec-failed">0</div><div class="exec-metric-label">Failed</div></div></div>
-            <div class="col-6 col-md-4 col-lg-2"><div class="exec-metric"><div class="exec-metric-value" id="exec-coverage">0%</div><div class="exec-metric-label">Coverage</div></div></div>
-            <div class="col-6 col-md-4 col-lg-2"><div class="exec-metric exec-metric-risk"><div class="exec-metric-value">$<span id="exec-risk">0</span></div><div class="exec-metric-label">Risk Mitigated</div></div></div>
-            <div class="col-6 col-md-4 col-lg-2"><div class="exec-metric exec-metric-time"><div class="exec-metric-value"><span id="exec-time">0</span>h</div><div class="exec-metric-label">Time Saved</div></div></div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Hero -->
-    <div class="text-center py-3" id="hero-section">
-      <h1 class="hero-title mb-2">Data Pipe X-Ray</h1>
-      <p class="hero-sub mb-3">Feed it a messy API spec. Watch the AI scan, reason, and generate expert-grade tests. Then light up your entire data pipeline like an X-Ray.</p>
-
-      <div class="d-flex flex-wrap gap-2 justify-content-center mb-2">
-        <button type="button" class="btn scenario-btn" data-scenario="payments"><i class="bi bi-credit-card me-1"></i> Payments Pipeline</button>
-        <button type="button" class="btn scenario-btn" data-scenario="ledger"><i class="bi bi-journal-check me-1"></i> Ledger &amp; Settlements</button>
-        <button type="button" class="btn scenario-btn" data-scenario="legacy-outage"><i class="bi bi-cpu me-1"></i> Legacy Emulator Outage</button>
-        <button type="button" class="btn scenario-btn scenario-btn-legacy" data-scenario="legacy-cobol"><i class="bi bi-archive me-1"></i> Legacy COBOL Archaeology</button>
-      </div>
-
-      <!-- Chaos Dial + Compliance Toggle -->
-      <div class="d-flex flex-wrap gap-4 justify-content-center align-items-end mb-2">
-        <div class="chaos-control text-start">
-          <label class="form-label small mb-1 d-flex align-items-center gap-1">
-            <i class="bi bi-radioactive" style="color:var(--neon-amber)"></i>
-            <span>Chaos Level</span>
-            <span class="badge chaos-level-badge" id="chaos-level-label">LOW</span>
-          </label>
-          <input type="range" class="form-range" id="chaos-dial" min="0" max="2" step="1" value="0" style="width:180px;" />
-          <div class="d-flex justify-content-between" style="width:180px;">
-            <span class="chaos-tick">Low</span><span class="chaos-tick">Medium</span><span class="chaos-tick">High</span>
-          </div>
-        </div>
-        <div class="compliance-control text-start">
-          <label class="form-label small mb-1 d-flex align-items-center gap-1">
-            <i class="bi bi-shield-check" style="color:var(--neon-purple)"></i>
-            <span>Compliance Overlay</span>
-          </label>
-          <div class="d-flex gap-1">
-            <button type="button" class="btn btn-sm compliance-tag active" data-tag="SOC2">SOC2</button>
-            <button type="button" class="btn btn-sm compliance-tag" data-tag="GDPR">GDPR</button>
-            <button type="button" class="btn btn-sm compliance-tag" data-tag="PCI-DSS">PCI-DSS</button>
-          </div>
-        </div>
-      </div>
-
-      <button type="button" class="btn btn-launch" id="launch-btn"><i class="bi bi-lightning-charge-fill me-2"></i>Launch X-Ray</button>
-      <div class="mt-2 small text-secondary" id="launch-status"></div>
-    </div>
-
-    <!-- Act Progress Bar -->
-    <div class="act-progress mb-3" id="act-progress">
-      <div class="act-step completed" data-act="idle"><div class="act-dot"><i class="bi bi-cursor-fill"></i></div><div class="act-label">Ready</div></div>
-      <div class="act-connector"><div class="act-connector-fill" id="conn-1"></div></div>
-      <div class="act-step" data-act="scanning"><div class="act-dot"><i class="bi bi-search"></i></div><div class="act-label">Scan Spec</div></div>
-      <div class="act-connector"><div class="act-connector-fill" id="conn-2"></div></div>
-      <div class="act-step" data-act="generating"><div class="act-dot"><i class="bi bi-code-slash"></i></div><div class="act-label">Generate Tests</div></div>
-      <div class="act-connector"><div class="act-connector-fill" id="conn-3"></div></div>
-      <div class="act-step" data-act="xray"><div class="act-dot"><i class="bi bi-activity"></i></div><div class="act-label">X-Ray</div></div>
-      <div class="act-connector"><div class="act-connector-fill" id="conn-4"></div></div>
-      <div class="act-step" data-act="complete"><div class="act-dot"><i class="bi bi-check-lg"></i></div><div class="act-label">Complete</div></div>
-    </div>
-
-    <!-- Agent Console -->
-    <div class="row mb-3" id="console-section">
-      <div class="col-12">
-        <div class="agent-console-card">
-          <div class="card-header border-0 d-flex justify-content-between align-items-center px-3 pt-3 pb-0">
-            <div class="d-flex align-items-center gap-2">
-              <span class="badge badge-glow-blue"><i class="bi bi-cpu me-1"></i>Agent Console</span>
-              <span class="small text-secondary d-none d-md-inline">Live reasoning from the AI as it scans your spec and builds tests.</span>
-            </div>
-            <span id="agent-phase-pill" class="agent-phase-pill idle text-uppercase">Idle</span>
-          </div>
-          <div class="card-body pt-2 pb-3 px-3">
-            <pre class="agent-console-log mb-0 p-2 rounded" id="agent-console-log"><span class="text-secondary">// Waiting for launch. Choose a scenario above and hit "Launch X-Ray".</span></pre>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- AI Test Strategy -->
-    <div class="row mb-3 d-none" id="ai-strategy-section">
-      <div class="col-12">
-        <div class="xray-card strategy-card">
-          <div class="card-header border-0 d-flex align-items-center justify-content-between px-3 pt-3 pb-0">
-            <span class="badge badge-glow-blue"><i class="bi bi-lightbulb me-1"></i>AI Test Strategy</span>
-            <span class="small text-secondary">What the AI plans to test and why</span>
-          </div>
-          <div class="card-body px-3 pb-3"><div class="row g-2" id="ai-strategy-grid"></div></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Collapsible: Spec + Generated Tests -->
-    <div class="row g-3 mb-3" id="spec-code-section">
-      <div class="col-12">
-        <div class="d-flex align-items-center justify-content-between mb-2">
-          <span class="small fw-semibold" style="color:var(--text-secondary)"><i class="bi bi-arrows-collapse me-1"></i>Input Spec &amp; Generated Tests</span>
-          <button class="btn btn-sm btn-collapse-toggle" id="toggle-spec-code"><i class="bi bi-chevron-up" id="toggle-spec-code-icon"></i> <span id="toggle-spec-code-text">Collapse</span></button>
-        </div>
-      </div>
-      <div id="spec-code-body" class="col-12">
-        <div class="row g-3">
-          <div class="col-12 col-xl-5">
-            <div class="xray-card h-100">
-              <div class="card-header border-0 d-flex align-items-center justify-content-between px-3 pt-3 pb-0">
-                <div class="d-flex align-items-center gap-2">
-                  <span class="badge badge-glow-blue"><i class="bi bi-file-earmark-code me-1"></i>Input Spec</span>
-                  <span class="badge text-bg-secondary" id="spec-kind-badge" style="font-size:0.65rem">OpenAPI</span>
+            <div class="row g-3" id="exec-summary-grid">
+              <div class="col-6 col-md-4 col-lg-2">
+                <div class="exec-metric">
+                  <div class="exec-metric-value" id="exec-total-tests">0</div>
+                  <div class="exec-metric-label">Tests Generated</div>
                 </div>
               </div>
-              <div class="card-body px-3 pb-3 d-flex flex-column">
-                <textarea id="spec-text" class="form-control font-monospace spec-textarea mb-2" rows="6" spellcheck="false"></textarea>
-                <div class="position-relative flex-fill overflow-auto rounded" id="spec-preview-shell" style="display:none;max-height:200px;">
-                  <pre class="m-0 p-3 font-monospace small" id="spec-preview"><code></code></pre>
-                  <div class="spec-scan-overlay d-none" id="spec-scan-overlay"></div>
-                  <div class="spec-extractions" id="spec-extractions"></div>
-                </div>
-                <div class="mt-2 small" id="spec-summary"></div>
-              </div>
-            </div>
-          </div>
-          <div class="col-12 col-xl-7">
-            <div class="xray-card h-100">
-              <div class="card-header border-0 d-flex align-items-center justify-content-between px-3 pt-3 pb-0">
-                <div class="d-flex align-items-center gap-2">
-                  <span class="badge badge-glow-blue"><i class="bi bi-code-square me-1"></i>AI-Generated Tests</span>
-                  <span class="badge badge-glow-green d-none" id="compliance-active-badge"></span>
+              <div class="col-6 col-md-4 col-lg-2">
+                <div class="exec-metric exec-metric-pass">
+                  <div class="exec-metric-value" id="exec-passed">0</div>
+                  <div class="exec-metric-label">Passed</div>
                 </div>
               </div>
-              <div class="card-body px-3 pb-3 d-flex flex-column">
-                <ul class="nav nav-pills mb-2" id="test-category-tabs" role="tablist">
-                  <li class="nav-item" role="presentation"><button class="nav-link active" id="tab-happy" data-bs-toggle="tab" data-bs-target="#pane-happy" type="button" role="tab">Happy Path <span class="badge text-bg-secondary ms-1" id="count-happy">0</span></button></li>
-                  <li class="nav-item" role="presentation"><button class="nav-link" id="tab-edge" data-bs-toggle="tab" data-bs-target="#pane-edge" type="button" role="tab">Edge Cases <span class="badge text-bg-secondary ms-1" id="count-edge">0</span></button></li>
-                  <li class="nav-item" role="presentation"><button class="nav-link" id="tab-malicious" data-bs-toggle="tab" data-bs-target="#pane-malicious" type="button" role="tab">Malicious <span class="badge text-bg-secondary ms-1" id="count-malicious">0</span></button></li>
-                  <li class="nav-item" role="presentation"><button class="nav-link" id="tab-property" data-bs-toggle="tab" data-bs-target="#pane-property" type="button" role="tab">Property-Based <span class="badge text-bg-secondary ms-1" id="count-property">0</span></button></li>
-                </ul>
-                <div class="tab-content flex-fill border rounded overflow-auto" id="test-panes" style="border-color: rgba(148,163,184,0.1) !important;">
-                  <div class="tab-pane fade show active" id="pane-happy" role="tabpanel"><pre class="m-0 p-3 font-monospace small code-pane" data-category="happy"><code id="code-happy" class="language-python"># Happy tests will stream here...</code></pre></div>
-                  <div class="tab-pane fade" id="pane-edge" role="tabpanel"><pre class="m-0 p-3 font-monospace small code-pane" data-category="edge"><code id="code-edge" class="language-python"># Edge tests will stream here...</code></pre></div>
-                  <div class="tab-pane fade" id="pane-malicious" role="tabpanel"><pre class="m-0 p-3 font-monospace small code-pane" data-category="malicious"><code id="code-malicious" class="language-python"># Malicious tests will stream here...</code></pre></div>
-                  <div class="tab-pane fade" id="pane-property" role="tabpanel"><pre class="m-0 p-3 font-monospace small code-pane" data-category="property"><code id="code-property" class="language-python"># Property tests will stream here...</code></pre></div>
+              <div class="col-6 col-md-4 col-lg-2">
+                <div class="exec-metric exec-metric-fail">
+                  <div class="exec-metric-value" id="exec-failed">0</div>
+                  <div class="exec-metric-label">Failed</div>
+                </div>
+              </div>
+              <div class="col-6 col-md-4 col-lg-2">
+                <div class="exec-metric">
+                  <div class="exec-metric-value" id="exec-coverage">0%</div>
+                  <div class="exec-metric-label">Coverage</div>
+                </div>
+              </div>
+              <div class="col-6 col-md-4 col-lg-2">
+                <div class="exec-metric exec-metric-risk">
+                  <div class="exec-metric-value">$<span id="exec-risk">0</span></div>
+                  <div class="exec-metric-label">Risk Mitigated</div>
+                </div>
+              </div>
+              <div class="col-6 col-md-4 col-lg-2">
+                <div class="exec-metric exec-metric-time">
+                  <div class="exec-metric-value"><span id="exec-time">0</span>h</div>
+                  <div class="exec-metric-label">Time Saved</div>
                 </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- Beginner vs Expert comparison (hidden until test generation completes) -->
-    <div class="row mb-3 d-none" id="expert-comparison">
-      <div class="col-12">
-        <div class="xray-card">
-          <div class="card-header border-0 px-3 pt-3 pb-0">
-            <span class="badge badge-glow-green"><i class="bi bi-mortarboard-fill me-1"></i>Beginner vs Expert</span>
+      <!-- Hero -->
+      <div class="text-center py-3" id="hero-section">
+        <h1 class="hero-title mb-2">Data Pipe X-Ray</h1>
+        <p class="hero-sub mb-3">Feed it a messy API spec. Watch the AI scan, reason, and generate expert-grade tests.
+          Then light up your entire data pipeline like an X-Ray.</p>
+
+        <div class="d-flex flex-wrap gap-2 justify-content-center mb-2">
+          <button type="button" class="btn scenario-btn" data-scenario="payments"><i class="bi bi-credit-card me-1"></i>
+            Payments Pipeline</button>
+          <button type="button" class="btn scenario-btn" data-scenario="ledger"><i class="bi bi-journal-check me-1"></i>
+            Ledger &amp; Settlements</button>
+          <button type="button" class="btn scenario-btn" data-scenario="legacy-outage"><i class="bi bi-cpu me-1"></i>
+            Legacy Emulator Outage</button>
+          <button type="button" class="btn scenario-btn scenario-btn-legacy" data-scenario="legacy-cobol"><i
+              class="bi bi-archive me-1"></i> Legacy COBOL Archaeology</button>
+        </div>
+
+        <!-- Chaos Dial + Compliance Toggle -->
+        <div class="d-flex flex-wrap gap-4 justify-content-center align-items-end mb-2">
+          <div class="chaos-control text-start">
+            <label class="form-label small mb-1 d-flex align-items-center gap-1">
+              <i class="bi bi-radioactive" style="color:var(--neon-amber)"></i>
+              <span>Chaos Level</span>
+              <span class="badge chaos-level-badge" id="chaos-level-label">LOW</span>
+            </label>
+            <input type="range" class="form-range" id="chaos-dial" min="0" max="2" step="1" value="0"
+              style="width:180px;" />
+            <div class="d-flex justify-content-between" style="width:180px;">
+              <span class="chaos-tick">Low</span><span class="chaos-tick">Medium</span><span
+                class="chaos-tick">High</span>
+            </div>
           </div>
-          <div class="card-body px-3 pb-3">
-            <div class="row g-3">
-              <div class="col-12 col-md-6">
-                <div class="expert-comparison-column expert-comparison-beginner rounded p-3 h-100">
-                  <div class="small fw-semibold text-secondary mb-2">Typical Test Suite</div>
-                  <ul class="small text-secondary mb-0 ps-3" id="expert-comparison-beginner-list">
-                    <li>test_create_payment_valid</li>
-                    <li>test_get_payment_by_id</li>
-                    <li>test_events_post_ok</li>
-                    <li>test_amount_validation</li>
-                    <li>test_currency_required</li>
+          <div class="compliance-control text-start">
+            <label class="form-label small mb-1 d-flex align-items-center gap-1">
+              <i class="bi bi-shield-check" style="color:var(--neon-purple)"></i>
+              <span>Compliance Overlay</span>
+            </label>
+            <div class="d-flex gap-1">
+              <button type="button" class="btn btn-sm compliance-tag active" data-tag="SOC2">SOC2</button>
+              <button type="button" class="btn btn-sm compliance-tag" data-tag="GDPR">GDPR</button>
+              <button type="button" class="btn btn-sm compliance-tag" data-tag="PCI-DSS">PCI-DSS</button>
+            </div>
+          </div>
+        </div>
+
+        <button type="button" class="btn btn-launch" id="launch-btn"><i
+            class="bi bi-lightning-charge-fill me-2"></i>Launch X-Ray</button>
+        <div class="mt-2 small text-secondary" id="launch-status"></div>
+      </div>
+
+      <!-- Act Progress Bar -->
+      <div class="act-progress mb-3" id="act-progress">
+        <div class="act-step completed" data-act="idle">
+          <div class="act-dot"><i class="bi bi-cursor-fill"></i></div>
+          <div class="act-label">Ready</div>
+        </div>
+        <div class="act-connector">
+          <div class="act-connector-fill" id="conn-1"></div>
+        </div>
+        <div class="act-step" data-act="scanning">
+          <div class="act-dot"><i class="bi bi-search"></i></div>
+          <div class="act-label">Scan Spec</div>
+        </div>
+        <div class="act-connector">
+          <div class="act-connector-fill" id="conn-2"></div>
+        </div>
+        <div class="act-step" data-act="generating">
+          <div class="act-dot"><i class="bi bi-code-slash"></i></div>
+          <div class="act-label">Generate Tests</div>
+        </div>
+        <div class="act-connector">
+          <div class="act-connector-fill" id="conn-3"></div>
+        </div>
+        <div class="act-step" data-act="xray">
+          <div class="act-dot"><i class="bi bi-activity"></i></div>
+          <div class="act-label">X-Ray</div>
+        </div>
+        <div class="act-connector">
+          <div class="act-connector-fill" id="conn-4"></div>
+        </div>
+        <div class="act-step" data-act="complete">
+          <div class="act-dot"><i class="bi bi-check-lg"></i></div>
+          <div class="act-label">Complete</div>
+        </div>
+      </div>
+
+      <!-- Agent Console -->
+      <div class="row mb-3" id="console-section">
+        <div class="col-12">
+          <div class="agent-console-card">
+            <div class="card-header border-0 d-flex justify-content-between align-items-center px-3 pt-3 pb-0">
+              <div class="d-flex align-items-center gap-2">
+                <span class="badge badge-glow-blue"><i class="bi bi-cpu me-1"></i>Agent Console</span>
+                <span class="small text-secondary d-none d-md-inline">Live reasoning from the AI as it scans your spec
+                  and builds tests.</span>
+              </div>
+              <span id="agent-phase-pill" class="agent-phase-pill idle text-uppercase">Idle</span>
+            </div>
+            <div class="card-body pt-2 pb-3 px-3">
+              <pre class="agent-console-log mb-0 p-2 rounded"
+                id="agent-console-log"><span class="text-secondary">// Waiting for launch. Choose a scenario above and hit "Launch X-Ray".</span></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI Test Strategy -->
+      <div class="row mb-3 d-none" id="ai-strategy-section">
+        <div class="col-12">
+          <div class="xray-card strategy-card">
+            <div class="card-header border-0 d-flex align-items-center justify-content-between px-3 pt-3 pb-0">
+              <span class="badge badge-glow-blue"><i class="bi bi-lightbulb me-1"></i>AI Test Strategy</span>
+              <span class="small text-secondary">What the AI plans to test and why</span>
+            </div>
+            <div class="card-body px-3 pb-3">
+              <div class="row g-2" id="ai-strategy-grid"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Collapsible: Spec + Generated Tests -->
+      <div class="row g-3 mb-3" id="spec-code-section">
+        <div class="col-12">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <span class="small fw-semibold" style="color:var(--text-secondary)"><i
+                class="bi bi-arrows-collapse me-1"></i>Input Spec &amp; Generated Tests</span>
+            <button class="btn btn-sm btn-collapse-toggle" id="toggle-spec-code"><i class="bi bi-chevron-up"
+                id="toggle-spec-code-icon"></i> <span id="toggle-spec-code-text">Collapse</span></button>
+          </div>
+        </div>
+        <div id="spec-code-body" class="col-12">
+          <div class="row g-3">
+            <div class="col-12 col-xl-5">
+              <div class="xray-card h-100">
+                <div class="card-header border-0 d-flex align-items-center justify-content-between px-3 pt-3 pb-0">
+                  <div class="d-flex align-items-center gap-2">
+                    <span class="badge badge-glow-blue"><i class="bi bi-file-earmark-code me-1"></i>Input Spec</span>
+                    <span class="badge text-bg-secondary" id="spec-kind-badge" style="font-size:0.65rem">OpenAPI</span>
+                  </div>
+                </div>
+                <div class="card-body px-3 pb-3 d-flex flex-column">
+                  <textarea id="spec-text" class="form-control font-monospace spec-textarea mb-2" rows="6"
+                    spellcheck="false"></textarea>
+                  <div class="position-relative flex-fill overflow-auto rounded" id="spec-preview-shell"
+                    style="display:none;max-height:200px;">
+                    <pre class="m-0 p-3 font-monospace small" id="spec-preview"><code></code></pre>
+                    <div class="spec-scan-overlay d-none" id="spec-scan-overlay"></div>
+                    <div class="spec-extractions" id="spec-extractions"></div>
+                  </div>
+                  <div class="mt-2 small" id="spec-summary"></div>
+                </div>
+              </div>
+            </div>
+            <div class="col-12 col-xl-7">
+              <div class="xray-card h-100">
+                <div class="card-header border-0 d-flex align-items-center justify-content-between px-3 pt-3 pb-0">
+                  <div class="d-flex align-items-center gap-2">
+                    <span class="badge badge-glow-blue"><i class="bi bi-code-square me-1"></i>AI-Generated Tests</span>
+                    <span class="badge badge-glow-green d-none" id="compliance-active-badge"></span>
+                  </div>
+                </div>
+                <div class="card-body px-3 pb-3 d-flex flex-column">
+                  <ul class="nav nav-pills mb-2" id="test-category-tabs" role="tablist">
+                    <li class="nav-item" role="presentation"><button class="nav-link active" id="tab-happy"
+                        data-bs-toggle="tab" data-bs-target="#pane-happy" type="button" role="tab">Happy Path <span
+                          class="badge text-bg-secondary ms-1" id="count-happy">0</span></button></li>
+                    <li class="nav-item" role="presentation"><button class="nav-link" id="tab-edge" data-bs-toggle="tab"
+                        data-bs-target="#pane-edge" type="button" role="tab">Edge Cases <span
+                          class="badge text-bg-secondary ms-1" id="count-edge">0</span></button></li>
+                    <li class="nav-item" role="presentation"><button class="nav-link" id="tab-malicious"
+                        data-bs-toggle="tab" data-bs-target="#pane-malicious" type="button" role="tab">Malicious <span
+                          class="badge text-bg-secondary ms-1" id="count-malicious">0</span></button></li>
+                    <li class="nav-item" role="presentation"><button class="nav-link" id="tab-property"
+                        data-bs-toggle="tab" data-bs-target="#pane-property" type="button" role="tab">Property-Based
+                        <span class="badge text-bg-secondary ms-1" id="count-property">0</span></button></li>
                   </ul>
-                </div>
-              </div>
-              <div class="col-12 col-md-6">
-                <div class="expert-comparison-column expert-comparison-ai rounded p-3 h-100">
-                  <div class="small fw-semibold mb-2" style="color:var(--neon-green)">AI-Generated Suite</div>
-                  <div id="expert-comparison-ai-list" class="d-flex flex-wrap gap-1 small"></div>
+                  <div class="tab-content flex-fill border rounded overflow-auto" id="test-panes"
+                    style="border-color: rgba(148,163,184,0.1) !important;">
+                    <div class="tab-pane fade show active" id="pane-happy" role="tabpanel">
+                      <pre class="m-0 p-3 font-monospace small code-pane"
+                        data-category="happy"><code id="code-happy" class="language-python"># Happy tests will stream here...</code></pre>
+                    </div>
+                    <div class="tab-pane fade" id="pane-edge" role="tabpanel">
+                      <pre class="m-0 p-3 font-monospace small code-pane"
+                        data-category="edge"><code id="code-edge" class="language-python"># Edge tests will stream here...</code></pre>
+                    </div>
+                    <div class="tab-pane fade" id="pane-malicious" role="tabpanel">
+                      <pre class="m-0 p-3 font-monospace small code-pane"
+                        data-category="malicious"><code id="code-malicious" class="language-python"># Malicious tests will stream here...</code></pre>
+                    </div>
+                    <div class="tab-pane fade" id="pane-property" role="tabpanel">
+                      <pre class="m-0 p-3 font-monospace small code-pane"
+                        data-category="property"><code id="code-property" class="language-python"># Property tests will stream here...</code></pre>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- Legacy Archaeology Transpilation -->
-    <div class="row mb-3 d-none" id="archaeology-section">
-      <div class="col-12">
-        <div class="xray-card archaeology-card">
-          <div class="card-header border-0 d-flex justify-content-between align-items-center px-3 pt-3 pb-0">
-            <span class="badge" style="background:rgba(245,158,11,0.15);color:var(--neon-amber);border:1px solid rgba(245,158,11,0.3)"><i class="bi bi-archive me-1"></i>Legacy Archaeology Mode</span>
-            <span class="small text-secondary">COBOL &rarr; Modern Python Pydantic</span>
+      <!-- Beginner vs Expert comparison (hidden until test generation completes) -->
+      <div class="row mb-3 d-none" id="expert-comparison">
+        <div class="col-12">
+          <div class="xray-card">
+            <div class="card-header border-0 px-3 pt-3 pb-0">
+              <span class="badge badge-glow-green"><i class="bi bi-mortarboard-fill me-1"></i>Beginner vs Expert</span>
+            </div>
+            <div class="card-body px-3 pb-3">
+              <div class="row g-3">
+                <div class="col-12 col-md-6">
+                  <div class="expert-comparison-column expert-comparison-beginner rounded p-3 h-100">
+                    <div class="small fw-semibold text-secondary mb-2">Typical Test Suite</div>
+                    <ul class="small text-secondary mb-0 ps-3" id="expert-comparison-beginner-list">
+                      <li>test_create_payment_valid</li>
+                      <li>test_get_payment_by_id</li>
+                      <li>test_events_post_ok</li>
+                      <li>test_amount_validation</li>
+                      <li>test_currency_required</li>
+                    </ul>
+                  </div>
+                </div>
+                <div class="col-12 col-md-6">
+                  <div class="expert-comparison-column expert-comparison-ai rounded p-3 h-100">
+                    <div class="small fw-semibold mb-2" style="color:var(--neon-green)">AI-Generated Suite</div>
+                    <div id="expert-comparison-ai-list" class="d-flex flex-wrap gap-1 small"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-          <div class="card-body px-3 pb-3">
-            <div class="row g-3">
-              <div class="col-12 col-md-5">
-                <div class="small fw-semibold mb-1" style="color:var(--neon-amber)"><i class="bi bi-file-earmark-code me-1"></i>Legacy Record Layout</div>
-                <pre class="p-2 rounded small font-monospace" style="background:var(--console-bg);max-height:200px;overflow:auto;"><code style="color:var(--text-secondary)">RECORD: TRADE-SETTLEMENT-REC
+        </div>
+      </div>
+
+      <!-- Legacy Archaeology Transpilation -->
+      <div class="row mb-3 d-none" id="archaeology-section">
+        <div class="col-12">
+          <div class="xray-card archaeology-card">
+            <div class="card-header border-0 d-flex justify-content-between align-items-center px-3 pt-3 pb-0">
+              <span class="badge"
+                style="background:rgba(245,158,11,0.15);color:var(--neon-amber);border:1px solid rgba(245,158,11,0.3)"><i
+                  class="bi bi-archive me-1"></i>Legacy Archaeology Mode</span>
+              <span class="small text-secondary">COBOL &rarr; Modern Python Pydantic</span>
+            </div>
+            <div class="card-body px-3 pb-3">
+              <div class="row g-3">
+                <div class="col-12 col-md-5">
+                  <div class="small fw-semibold mb-1" style="color:var(--neon-amber)"><i
+                      class="bi bi-file-earmark-code me-1"></i>Legacy Record Layout</div>
+                  <pre class="p-2 rounded small font-monospace"
+                    style="background:var(--console-bg);max-height:200px;overflow:auto;"><code style="color:var(--text-secondary)">RECORD: TRADE-SETTLEMENT-REC
   PIC X(12)   TRADE-ID
   PIC 9(8)    TRADE-DATE     (YYYYMMDD)
   PIC X(6)    TICKER-SYMBOL
@@ -327,181 +441,284 @@
   PIC X(1)    SETTLEMENT-FLAG (S/P/X)
   PIC 9(8)    SETTLEMENT-DATE
   PIC X(4)    LEGACY-BRANCH</code></pre>
-              </div>
-              <div class="col-12 col-md-2 d-flex flex-column align-items-center justify-content-center">
-                <i class="bi bi-arrow-right" style="font-size:2rem;color:var(--neon-amber)" id="arch-arrow"></i>
-                <div class="small text-secondary mt-1">AI Transpilation</div>
-              </div>
-              <div class="col-12 col-md-5">
-                <div class="small fw-semibold mb-1" style="color:var(--neon-green)"><i class="bi bi-filetype-py me-1"></i>Modern Pydantic Model</div>
-                <pre class="p-2 rounded small font-monospace" style="background:var(--console-bg);max-height:200px;overflow:auto;" id="arch-pydantic"><code class="language-python" id="arch-pydantic-code"></code></pre>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- X-Ray Pipeline Graph -->
-    <div class="row mb-3" id="xray-section">
-      <div class="col-12">
-        <div class="xray-card" style="position:relative;">
-          <div class="card-header border-0 d-flex justify-content-between align-items-center px-3 pt-3 pb-0">
-            <span class="badge badge-glow-green"><i class="bi bi-activity me-1"></i>Pipeline X-Ray</span>
-            <div class="d-flex align-items-center gap-2 small">
-              <span class="text-secondary" id="xray-pass-count">0 passed</span>
-              <span class="text-secondary">|</span>
-              <span class="text-secondary" id="xray-fail-count">0 failed</span>
-            </div>
-          </div>
-          <div class="card-body px-3 pb-3">
-            <div class="xray-failure-flash d-none" id="xray-failure-flash"></div>
-            <div id="xray-graph" class="xray-graph-shell mb-2"></div>
-            <div class="d-flex align-items-center gap-3 mb-2">
-              <div class="coverage-meter flex-fill">
-                <div class="coverage-label d-flex justify-content-between mb-1">
-                  <span class="small fw-semibold" style="color:var(--text-secondary)">Pipeline Coverage</span>
-                  <span class="small fw-bold" id="coverage-pct" style="color:var(--neon-green)">0%</span>
                 </div>
-                <div class="coverage-bar-bg"><div class="coverage-bar" id="coverage-bar" style="width:0%"></div></div>
+                <div class="col-12 col-md-2 d-flex flex-column align-items-center justify-content-center">
+                  <i class="bi bi-arrow-right" style="font-size:2rem;color:var(--neon-amber)" id="arch-arrow"></i>
+                  <div class="small text-secondary mt-1">AI Transpilation</div>
+                </div>
+                <div class="col-12 col-md-5">
+                  <div class="small fw-semibold mb-1" style="color:var(--neon-green)"><i
+                      class="bi bi-filetype-py me-1"></i>Modern Pydantic Model</div>
+                  <pre class="p-2 rounded small font-monospace"
+                    style="background:var(--console-bg);max-height:200px;overflow:auto;"
+                    id="arch-pydantic"><code class="language-python" id="arch-pydantic-code"></code></pre>
+                </div>
               </div>
             </div>
-            <div class="d-flex align-items-center gap-3">
-              <input type="range" class="form-range flex-fill" id="xray-timeline" min="0" max="0" value="0" style="max-width: 400px;" />
-              <span class="small text-secondary" id="xray-status">Waiting for X-Ray...</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- X-Ray Pipeline Graph -->
+      <div class="row mb-3" id="xray-section">
+        <div class="col-12">
+          <div class="xray-card" style="position:relative;">
+            <div class="card-header border-0 d-flex justify-content-between align-items-center px-3 pt-3 pb-0">
+              <span class="badge badge-glow-green"><i class="bi bi-activity me-1"></i>Pipeline X-Ray</span>
+              <div class="d-flex align-items-center gap-2 small">
+                <button class="btn btn-sm btn-fullscreen" id="xray-fullscreen-btn" title="Fullscreen X-Ray"><i
+                    class="bi bi-arrows-fullscreen"></i></button>
+                <span class="text-secondary" id="xray-pass-count">0 passed</span>
+                <span class="text-secondary">|</span>
+                <span class="text-secondary" id="xray-fail-count">0 failed</span>
+              </div>
             </div>
-            <div id="xray-detail" class="mt-2"></div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Feature Showcase -->
-    <div class="row g-3 mb-3" id="insights-section">
-      <div class="col-12 col-lg-6" id="pii-section">
-        <div class="xray-card h-100">
-          <div class="card-header border-0 d-flex justify-content-between align-items-center px-3 pt-3 pb-0"><span class="badge badge-glow-red"><i class="bi bi-eye-slash me-1"></i>PII Leak Detection</span></div>
-          <div class="card-body px-3 pb-3"><div id="pii-results" class="row g-2"><div class="col-12 text-center py-3"><i class="bi bi-shield-lock" style="font-size:1.5rem;color:var(--neon-red);opacity:0.4"></i><div class="small text-secondary mt-1">Launch X-Ray to scan for PII leaks</div></div></div></div>
-        </div>
-      </div>
-      <div class="col-12 col-lg-6">
-        <div class="xray-card h-100">
-          <div class="card-header border-0 d-flex justify-content-between align-items-center px-3 pt-3 pb-0"><span class="badge badge-glow-red"><i class="bi bi-fire me-1"></i>Flakiness Heatmap</span><span class="small text-secondary">Technical Debt Hotspots</span></div>
-          <div class="card-body px-3 pb-3"><div id="flakiness-view"><div class="text-center py-3"><i class="bi bi-graph-up" style="font-size:1.5rem;color:var(--neon-amber);opacity:0.4"></i><div class="small text-secondary mt-1">Launch X-Ray to detect brittle pipeline segments</div></div></div></div>
-        </div>
-      </div>
-      <div class="col-12 col-lg-6">
-        <div class="xray-card h-100">
-          <div class="card-header border-0 d-flex justify-content-between align-items-center px-3 pt-3 pb-0"><span class="badge badge-glow-blue"><i class="bi bi-database-gear me-1"></i>Synthetic Data Twin</span><span class="small text-secondary">Shadow Database</span></div>
-          <div class="card-body px-3 pb-3"><div id="synthetic-twin-view"><div class="text-center py-3"><i class="bi bi-database" style="font-size:1.5rem;color:var(--neon-blue);opacity:0.4"></i><div class="small text-secondary mt-1">Launch X-Ray to generate synthetic test data</div></div></div></div>
-        </div>
-      </div>
-      <div class="col-12 col-lg-6">
-        <div class="xray-card h-100">
-          <div class="card-header border-0 d-flex justify-content-between align-items-center px-3 pt-3 pb-0"><span class="badge" style="background:rgba(245,158,11,0.15);color:var(--neon-amber);border:1px solid rgba(245,158,11,0.3)"><i class="bi bi-wrench me-1"></i>Self-Healing Engine</span><span class="small text-secondary">Ghost in the Machine</span></div>
-          <div class="card-body px-3 pb-3"><div id="self-healing-view"><div class="text-center py-3"><i class="bi bi-gear-wide-connected" style="font-size:1.5rem;color:var(--neon-amber);opacity:0.4"></i><div class="small text-secondary mt-1">Launch X-Ray to see auto-repair suggestions</div></div></div></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Advanced Analytics -->
-    <div class="row g-3 mb-3" id="advanced-section">
-      <!-- Mutation Score Analysis -->
-      <div class="col-12 col-lg-6">
-        <div class="xray-card h-100">
-          <div class="card-header border-0 d-flex justify-content-between align-items-center px-3 pt-3 pb-0">
-            <span class="badge badge-glow-purple"><i class="bi bi-bug me-1"></i>Mutation Score</span>
-            <span class="small text-secondary">How strong are these tests?</span>
-          </div>
-          <div class="card-body px-3 pb-3"><div id="mutation-score-view"><div class="text-center py-3"><i class="bi bi-bug" style="font-size:1.5rem;color:var(--neon-purple);opacity:0.4"></i><div class="small text-secondary mt-1">Launch X-Ray to analyze test strength</div></div></div></div>
-        </div>
-      </div>
-      <!-- Blast Radius Map -->
-      <div class="col-12 col-lg-6">
-        <div class="xray-card h-100">
-          <div class="card-header border-0 d-flex justify-content-between align-items-center px-3 pt-3 pb-0">
-            <span class="badge badge-glow-red"><i class="bi bi-bullseye me-1"></i>Blast Radius</span>
-            <span class="small text-secondary">Downstream failure impact</span>
-          </div>
-          <div class="card-body px-3 pb-3"><div id="blast-radius-view"><div class="text-center py-3"><i class="bi bi-bullseye" style="font-size:1.5rem;color:var(--neon-red);opacity:0.4"></i><div class="small text-secondary mt-1">Launch X-Ray to map failure blast radius</div></div></div></div>
-        </div>
-      </div>
-      <!-- Data Lineage Trace -->
-      <div class="col-12">
-        <div class="xray-card">
-          <div class="card-header border-0 d-flex justify-content-between align-items-center px-3 pt-3 pb-0">
-            <span class="badge badge-glow-blue"><i class="bi bi-signpost-split me-1"></i>Data Lineage Trace</span>
-            <span class="small text-secondary">Field-level origin, transformation, and destination</span>
-          </div>
-          <div class="card-body px-3 pb-3"><div id="lineage-view"><div class="text-center py-3"><i class="bi bi-signpost-split" style="font-size:1.5rem;color:var(--neon-blue);opacity:0.4"></i><div class="small text-secondary mt-1">Launch X-Ray to trace data lineage</div></div></div></div>
-        </div>
-      </div>
-      <!-- Test Impact Ranking -->
-      <div class="col-12 col-lg-6">
-        <div class="xray-card h-100">
-          <div class="card-header border-0 d-flex justify-content-between align-items-center px-3 pt-3 pb-0">
-            <span class="badge badge-glow-green"><i class="bi bi-sort-down me-1"></i>Test Impact Ranking</span>
-            <span class="small text-secondary">Prioritized by business risk</span>
-          </div>
-          <div class="card-body px-3 pb-3"><div id="impact-ranking-view"><div class="text-center py-3"><i class="bi bi-sort-down" style="font-size:1.5rem;color:var(--neon-green);opacity:0.4"></i><div class="small text-secondary mt-1">Launch X-Ray to rank tests by business impact</div></div></div></div>
-        </div>
-      </div>
-      <!-- Schema Version Diff -->
-      <div class="col-12 col-lg-6">
-        <div class="xray-card h-100">
-          <div class="card-header border-0 d-flex justify-content-between align-items-center px-3 pt-3 pb-0">
-            <span class="badge" style="background:rgba(167,139,250,0.15);color:var(--neon-purple);border:1px solid rgba(167,139,250,0.3)"><i class="bi bi-file-diff me-1"></i>Schema Version Diff</span>
-            <span class="small text-secondary">v2.4 → v2.5</span>
-          </div>
-          <div class="card-body px-3 pb-3"><div id="schema-diff-view"><div class="text-center py-3"><i class="bi bi-file-diff" style="font-size:1.5rem;color:var(--neon-purple);opacity:0.4"></i><div class="small text-secondary mt-1">Launch X-Ray to compare schema versions</div></div></div></div>
-        </div>
-      </div>
-      <!-- Latency & Throughput Simulation -->
-      <div class="col-12 col-lg-6">
-        <div class="xray-card h-100">
-          <div class="card-header border-0 d-flex justify-content-between align-items-center px-3 pt-3 pb-0">
-            <span class="badge badge-glow-green"><i class="bi bi-speedometer2 me-1"></i>Latency & Throughput</span>
-            <span class="small text-secondary">Performance simulation</span>
-          </div>
-          <div class="card-body px-3 pb-3"><div id="latency-sim-view"><div class="text-center py-3"><i class="bi bi-speedometer2" style="font-size:1.5rem;color:var(--neon-green);opacity:0.4"></i><div class="small text-secondary mt-1">Launch X-Ray to simulate load</div></div></div></div>
-        </div>
-      </div>
-      <!-- Dead Letter Queue -->
-      <div class="col-12 col-lg-6">
-        <div class="xray-card h-100">
-          <div class="card-header border-0 d-flex justify-content-between align-items-center px-3 pt-3 pb-0">
-            <span class="badge badge-glow-red"><i class="bi bi-mailbox2 me-1"></i>Dead Letter Queue</span>
-            <span class="small text-secondary">Failed messages & poison pills</span>
-          </div>
-          <div class="card-body px-3 pb-3"><div id="dlq-view"><div class="text-center py-3"><i class="bi bi-mailbox2" style="font-size:1.5rem;color:var(--neon-red);opacity:0.4"></i><div class="small text-secondary mt-1">Launch X-Ray to inspect dead letters</div></div></div></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- CI/CD + Mocks -->
-    <div class="row mb-5">
-      <div class="col-12">
-        <div class="xray-card">
-          <div class="card-header border-0 px-3 pt-3 pb-0">
-            <ul class="nav nav-tabs" id="bottom-tabs" role="tablist">
-              <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#pane-ci" type="button" role="tab">CI/CD Pipeline</button></li>
-              <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#pane-mocks" type="button" role="tab">Mock Services</button></li>
-            </ul>
-          </div>
-          <div class="card-body px-3 pb-3">
-            <div class="tab-content">
-              <div class="tab-pane fade show active" id="pane-ci" role="tabpanel"><div id="ci-view" class="row g-3"></div></div>
-              <div class="tab-pane fade" id="pane-mocks" role="tabpanel"><div id="mocks-view" class="row g-3"></div></div>
+            <div class="card-body px-3 pb-3">
+              <div class="xray-failure-flash d-none" id="xray-failure-flash"></div>
+              <div id="xray-graph" class="xray-graph-shell mb-2"></div>
+              <div class="d-flex align-items-center gap-3 mb-2">
+                <div class="coverage-meter flex-fill">
+                  <div class="coverage-label d-flex justify-content-between mb-1">
+                    <span class="small fw-semibold" style="color:var(--text-secondary)">Pipeline Coverage</span>
+                    <span class="small fw-bold" id="coverage-pct" style="color:var(--neon-green)">0%</span>
+                  </div>
+                  <div class="coverage-bar-bg">
+                    <div class="coverage-bar" id="coverage-bar" style="width:0%"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="d-flex align-items-center gap-3">
+                <input type="range" class="form-range flex-fill" id="xray-timeline" min="0" max="0" value="0"
+                  style="max-width: 400px;" />
+                <span class="small text-secondary" id="xray-status">Waiting for X-Ray...</span>
+              </div>
+              <div id="xray-detail" class="mt-2"></div>
             </div>
           </div>
         </div>
       </div>
-    </div>
-  </section>
-    </main>
 
-    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.11.1/lib/common.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
-    <script type="module" src="js/main.js"></script>
-  </body>
+      <!-- Feature Showcase -->
+      <div class="row g-3 mb-3" id="insights-section">
+        <div class="col-12 col-lg-6" id="pii-section">
+          <div class="xray-card h-100">
+            <div class="card-header border-0 d-flex justify-content-between align-items-center px-3 pt-3 pb-0"><span
+                class="badge badge-glow-red"><i class="bi bi-eye-slash me-1"></i>PII Leak Detection</span></div>
+            <div class="card-body px-3 pb-3">
+              <div id="pii-results" class="row g-2">
+                <div class="col-12 text-center py-3"><i class="bi bi-shield-lock"
+                    style="font-size:1.5rem;color:var(--neon-red);opacity:0.4"></i>
+                  <div class="small text-secondary mt-1">Launch X-Ray to scan for PII leaks</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-lg-6">
+          <div class="xray-card h-100">
+            <div class="card-header border-0 d-flex justify-content-between align-items-center px-3 pt-3 pb-0"><span
+                class="badge badge-glow-red"><i class="bi bi-fire me-1"></i>Flakiness Heatmap</span><span
+                class="small text-secondary">Technical Debt Hotspots</span></div>
+            <div class="card-body px-3 pb-3">
+              <div id="flakiness-view">
+                <div class="text-center py-3"><i class="bi bi-graph-up"
+                    style="font-size:1.5rem;color:var(--neon-amber);opacity:0.4"></i>
+                  <div class="small text-secondary mt-1">Launch X-Ray to detect brittle pipeline segments</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-lg-6">
+          <div class="xray-card h-100">
+            <div class="card-header border-0 d-flex justify-content-between align-items-center px-3 pt-3 pb-0"><span
+                class="badge badge-glow-blue"><i class="bi bi-database-gear me-1"></i>Synthetic Data Twin</span><span
+                class="small text-secondary">Shadow Database</span></div>
+            <div class="card-body px-3 pb-3">
+              <div id="synthetic-twin-view">
+                <div class="text-center py-3"><i class="bi bi-database"
+                    style="font-size:1.5rem;color:var(--neon-blue);opacity:0.4"></i>
+                  <div class="small text-secondary mt-1">Launch X-Ray to generate synthetic test data</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-lg-6">
+          <div class="xray-card h-100">
+            <div class="card-header border-0 d-flex justify-content-between align-items-center px-3 pt-3 pb-0"><span
+                class="badge"
+                style="background:rgba(245,158,11,0.15);color:var(--neon-amber);border:1px solid rgba(245,158,11,0.3)"><i
+                  class="bi bi-wrench me-1"></i>Self-Healing Engine</span><span class="small text-secondary">Ghost in
+                the Machine</span></div>
+            <div class="card-body px-3 pb-3">
+              <div id="self-healing-view">
+                <div class="text-center py-3"><i class="bi bi-gear-wide-connected"
+                    style="font-size:1.5rem;color:var(--neon-amber);opacity:0.4"></i>
+                  <div class="small text-secondary mt-1">Launch X-Ray to see auto-repair suggestions</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Advanced Analytics -->
+      <div class="row g-3 mb-3" id="advanced-section">
+        <!-- Mutation Score Analysis -->
+        <div class="col-12 col-lg-6">
+          <div class="xray-card h-100">
+            <div class="card-header border-0 d-flex justify-content-between align-items-center px-3 pt-3 pb-0">
+              <span class="badge badge-glow-purple"><i class="bi bi-bug me-1"></i>Mutation Score</span>
+              <span class="small text-secondary">How strong are these tests?</span>
+            </div>
+            <div class="card-body px-3 pb-3">
+              <div id="mutation-score-view">
+                <div class="text-center py-3"><i class="bi bi-bug"
+                    style="font-size:1.5rem;color:var(--neon-purple);opacity:0.4"></i>
+                  <div class="small text-secondary mt-1">Launch X-Ray to analyze test strength</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Blast Radius Map -->
+        <div class="col-12 col-lg-6">
+          <div class="xray-card h-100">
+            <div class="card-header border-0 d-flex justify-content-between align-items-center px-3 pt-3 pb-0">
+              <span class="badge badge-glow-red"><i class="bi bi-bullseye me-1"></i>Blast Radius</span>
+              <span class="small text-secondary">Downstream failure impact</span>
+            </div>
+            <div class="card-body px-3 pb-3">
+              <div id="blast-radius-view">
+                <div class="text-center py-3"><i class="bi bi-bullseye"
+                    style="font-size:1.5rem;color:var(--neon-red);opacity:0.4"></i>
+                  <div class="small text-secondary mt-1">Launch X-Ray to map failure blast radius</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Data Lineage Trace -->
+        <div class="col-12">
+          <div class="xray-card">
+            <div class="card-header border-0 d-flex justify-content-between align-items-center px-3 pt-3 pb-0">
+              <span class="badge badge-glow-blue"><i class="bi bi-signpost-split me-1"></i>Data Lineage Trace</span>
+              <span class="small text-secondary">Field-level origin, transformation, and destination</span>
+            </div>
+            <div class="card-body px-3 pb-3">
+              <div id="lineage-view">
+                <div class="text-center py-3"><i class="bi bi-signpost-split"
+                    style="font-size:1.5rem;color:var(--neon-blue);opacity:0.4"></i>
+                  <div class="small text-secondary mt-1">Launch X-Ray to trace data lineage</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Test Impact Ranking -->
+        <div class="col-12 col-lg-6">
+          <div class="xray-card h-100">
+            <div class="card-header border-0 d-flex justify-content-between align-items-center px-3 pt-3 pb-0">
+              <span class="badge badge-glow-green"><i class="bi bi-sort-down me-1"></i>Test Impact Ranking</span>
+              <span class="small text-secondary">Prioritized by business risk</span>
+            </div>
+            <div class="card-body px-3 pb-3">
+              <div id="impact-ranking-view">
+                <div class="text-center py-3"><i class="bi bi-sort-down"
+                    style="font-size:1.5rem;color:var(--neon-green);opacity:0.4"></i>
+                  <div class="small text-secondary mt-1">Launch X-Ray to rank tests by business impact</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Schema Version Diff -->
+        <div class="col-12 col-lg-6">
+          <div class="xray-card h-100">
+            <div class="card-header border-0 d-flex justify-content-between align-items-center px-3 pt-3 pb-0">
+              <span class="badge"
+                style="background:rgba(167,139,250,0.15);color:var(--neon-purple);border:1px solid rgba(167,139,250,0.3)"><i
+                  class="bi bi-file-diff me-1"></i>Schema Version Diff</span>
+              <span class="small text-secondary">v2.4 → v2.5</span>
+            </div>
+            <div class="card-body px-3 pb-3">
+              <div id="schema-diff-view">
+                <div class="text-center py-3"><i class="bi bi-file-diff"
+                    style="font-size:1.5rem;color:var(--neon-purple);opacity:0.4"></i>
+                  <div class="small text-secondary mt-1">Launch X-Ray to compare schema versions</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Latency & Throughput Simulation -->
+        <div class="col-12 col-lg-6">
+          <div class="xray-card h-100">
+            <div class="card-header border-0 d-flex justify-content-between align-items-center px-3 pt-3 pb-0">
+              <span class="badge badge-glow-green"><i class="bi bi-speedometer2 me-1"></i>Latency & Throughput</span>
+              <span class="small text-secondary">Performance simulation</span>
+            </div>
+            <div class="card-body px-3 pb-3">
+              <div id="latency-sim-view">
+                <div class="text-center py-3"><i class="bi bi-speedometer2"
+                    style="font-size:1.5rem;color:var(--neon-green);opacity:0.4"></i>
+                  <div class="small text-secondary mt-1">Launch X-Ray to simulate load</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Dead Letter Queue -->
+        <div class="col-12 col-lg-6">
+          <div class="xray-card h-100">
+            <div class="card-header border-0 d-flex justify-content-between align-items-center px-3 pt-3 pb-0">
+              <span class="badge badge-glow-red"><i class="bi bi-mailbox2 me-1"></i>Dead Letter Queue</span>
+              <span class="small text-secondary">Failed messages & poison pills</span>
+            </div>
+            <div class="card-body px-3 pb-3">
+              <div id="dlq-view">
+                <div class="text-center py-3"><i class="bi bi-mailbox2"
+                    style="font-size:1.5rem;color:var(--neon-red);opacity:0.4"></i>
+                  <div class="small text-secondary mt-1">Launch X-Ray to inspect dead letters</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CI/CD + Mocks -->
+      <div class="row mb-5">
+        <div class="col-12">
+          <div class="xray-card">
+            <div class="card-header border-0 px-3 pt-3 pb-0">
+              <ul class="nav nav-tabs" id="bottom-tabs" role="tablist">
+                <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="tab"
+                    data-bs-target="#pane-ci" type="button" role="tab">CI/CD Pipeline</button></li>
+                <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab"
+                    data-bs-target="#pane-mocks" type="button" role="tab">Mock Services</button></li>
+              </ul>
+            </div>
+            <div class="card-body px-3 pb-3">
+              <div class="tab-content">
+                <div class="tab-pane fade show active" id="pane-ci" role="tabpanel">
+                  <div id="ci-view" class="row g-3"></div>
+                </div>
+                <div class="tab-pane fade" id="pane-mocks" role="tabpanel">
+                  <div id="mocks-view" class="row g-3"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.11.1/lib/common.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+  <script type="module" src="js/main.js"></script>
+</body>
+
 </html>

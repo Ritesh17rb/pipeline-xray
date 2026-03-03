@@ -252,6 +252,10 @@ function triggerFailureFlash() {
     card.classList.add("shake");
     setTimeout(() => card.classList.remove("shake"), 500);
   }
+
+  // Screen shake on the whole page for dramatic effect
+  document.body.classList.add("screen-shake");
+  setTimeout(() => document.body.classList.remove("screen-shake"), 500);
 }
 
 function updateCoverage() {
@@ -320,7 +324,7 @@ function spawnPacket(fromId, toId, success) {
   if (!from || !to) return;
 
   const circle = document.createElementNS(ns, "circle");
-  circle.setAttribute("r", "7");
+  circle.setAttribute("r", success ? "7" : "9");
   circle.classList.add(success ? "xray-packet-ok" : "xray-packet-fail");
   circle.setAttribute("filter", "url(#packetGlow)");
   circle.setAttribute("cx", String(from.x));
@@ -426,13 +430,48 @@ function showExplanation(failure) {
 }
 
 function onNodeClick(nodeId) {
+  const detail = document.getElementById("xray-detail");
+  if (!detail) return;
+
   const relevant = failureLog.filter((f) => mapNodeId(f.nodeId) === nodeId || f.nodeId === nodeId);
-  if (relevant.length > 0) {
-    showExplanation(relevant[relevant.length - 1]);
+  const isHealthy = relevant.length === 0;
+
+  // Node metadata for rich display
+  const nodeInfo = {
+    "Client": { desc: "Initiates API requests", transforms: "JSON payload construction", latency: "~2ms", upstream: "None", downstream: ["API Gateway"] },
+    "API Gateway": { desc: "Schema validation, rate limiting, auth check", transforms: "JSON schema validation (strict/permissive mode)", latency: "~8ms p50, ~22ms p99", upstream: ["Client"], downstream: ["Validator"] },
+    "Validator": { desc: "Business rule validation, input sanitization", transforms: "Field validation, regex checks, type coercion", latency: "~12ms p50, ~35ms p99", upstream: ["API Gateway"], downstream: ["Transformer", "Risk Score API"] },
+    "Transformer": { desc: "Data normalization, format conversion", transforms: "Unix→ISO dates, currency conversion, field mapping", latency: "~45ms p50, ~120ms p99", upstream: ["Validator"], downstream: ["Database", "Legacy Emulator"] },
+    "Database": { desc: "Persistent storage, ledger posting", transforms: "Debit/credit double-entry, idempotent writes", latency: "~18ms p50, ~55ms p99", upstream: ["Transformer"], downstream: [] },
+    "Legacy Emulator": { desc: "Mainframe mirror writes, fallback queues", transforms: "JSON→fixed-width COBOL records", latency: "~85ms p50, ~340ms p99", upstream: ["Transformer"], downstream: [] },
+    "Risk Score API": { desc: "Third-party risk assessment", transforms: "Score calculation, threshold check", latency: "~32ms p50, ~95ms p99", upstream: ["Validator"], downstream: [] },
+  };
+
+  const info = nodeInfo[nodeId] || { desc: "Pipeline node", transforms: "—", latency: "—", upstream: [], downstream: [] };
+
+  // Count tests through this node
+  const testsThrough = failureLog.filter((f) => mapNodeId(f.nodeId) === nodeId).length;
+  const totalPass = passCount;
+
+  if (isHealthy) {
+    detail.innerHTML = `
+      <div class="xray-node-detail-panel">
+        <div class="d-flex align-items-center gap-2 mb-2">
+          <span class="badge badge-glow-green"><i class="bi bi-check-circle-fill me-1"></i>HEALTHY</span>
+          <span class="fw-semibold">${nodeId}</span>
+        </div>
+        <div class="small text-secondary mb-3">${info.desc}</div>
+        <div class="row g-2 mb-3">
+          <div class="col-4"><div class="node-detail-metric"><div class="node-detail-metric-value" style="color:var(--neon-green)">0</div><div class="node-detail-metric-label">Failures</div></div></div>
+          <div class="col-4"><div class="node-detail-metric"><div class="node-detail-metric-value" style="color:var(--neon-blue)">${info.latency.split(',')[0]}</div><div class="node-detail-metric-label">Latency</div></div></div>
+          <div class="col-4"><div class="node-detail-metric"><div class="node-detail-metric-value" style="color:var(--neon-green)">✓</div><div class="node-detail-metric-label">All Clear</div></div></div>
+        </div>
+        <div class="small mb-2"><i class="bi bi-arrow-left-right me-1" style="color:var(--neon-purple)"></i><strong>Transforms:</strong> ${info.transforms}</div>
+        <div class="d-flex gap-3 small">
+          <div><i class="bi bi-arrow-right me-1" style="color:var(--neon-blue)"></i><strong>Sends to:</strong> ${(Array.isArray(info.downstream) ? info.downstream : [info.downstream]).join(", ") || "Terminal"}</div>
+        </div>
+      </div>`;
   } else {
-    const detail = document.getElementById("xray-detail");
-    if (detail) {
-      detail.innerHTML = `<div class="small p-2" style="color:var(--text-secondary)"><i class="bi bi-check-circle me-1" style="color:var(--neon-green)"></i>Node <strong>${nodeId}</strong> is healthy. All tests passed through this stage.</div>`;
-    }
+    showExplanation(relevant[relevant.length - 1]);
   }
 }
